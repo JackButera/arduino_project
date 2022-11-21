@@ -30,11 +30,10 @@ struct TimeStamp {
     byte day;
 };
 
-byte currTemp = 0x01110111;
-byte currHumid = 0x10111011;
+byte currTemp;
+byte currHumid;
 
-byte ledBlinkRed;
-byte ledBlinkGreen;
+
 
 #define MAX_ARGS 6 //max arguments for token buffer
 #define MAX_BUF 30 // max length of string buffer
@@ -291,6 +290,36 @@ void led_BLINK(){
     }
 }
 
+void led_BLINK2(){
+    static long int ledTimer = 0;
+    byte ledBlinkRed = 0b01110111;
+    byte ledBlinkGreen = 0b10111011;
+    for (byte i = 0; i < 8; i++){
+        if (ledBlinkRed & 1 == 1){
+            if(ledBlinkRed >> 1 & 1 == 1){
+                led_OFF();
+            }
+            else{
+                led_RED();
+            }
+        }
+        ledBlinkRed = ledBlinkRed >> 2;
+    }
+    for (byte i = 0; i < 8; i++){
+        if (ledBlinkGreen & 1 == 1){
+            if(ledBlinkGreen >> 1 & 1 == 1){
+                led_OFF();
+            }
+        }
+        else{
+            if(ledBlinkGreen >> 1 & 1 == 1){
+                led_GREEN();
+            }
+        }
+        ledBlinkGreen = ledBlinkGreen >> 2;
+    }
+}
+
 //leds color ALTERNATEs between red and green at the interval 
 void led_ALTERNATE(){
     
@@ -530,7 +559,7 @@ void loop(){
     //if 'enter' is clicked, checks what user typed and applies to arduino
     if (c == 13){
         Serial.print("\n");
-
+        led_BLINK2();
         //parses the string the user entered
         for(int i = 0; i < strlen(buffer); i++){
             if(!isspace(buffer[i])){
