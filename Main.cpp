@@ -30,8 +30,11 @@ struct TimeStamp {
     byte day;
 };
 
-byte currTemp;
-byte currHumid;
+byte currTemp = 0x01110111;
+byte currHumid = 0x10111011;
+
+byte ledBlinkRed;
+byte ledBlinkGreen;
 
 #define MAX_ARGS 6 //max arguments for token buffer
 #define MAX_BUF 30 // max length of string buffer
@@ -161,7 +164,7 @@ void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][
                 tokenBuffer[i+1] = t_EOL;               
             }
 
-            else if(isDigit(parsedStr[i][0])){
+            else if(isDigit(parsedStr[i][0]) || (tokenBuffer[0] == t_ADD && parsedStr[i][0] == '-' && isDigit(parsedStr[i][1]))){
                 if (tokenBuffer[0] == t_SET && tokenBuffer[1] == t_BLINK){
                     tokenBuffer[i] = t_WORD;
                     userBlinkLong = strtol(parsedStr[i], NULL, 0);
