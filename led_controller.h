@@ -17,6 +17,7 @@
 #define t_TEMP 17
 #define t_ADD 18
 #define t_RGB 19
+#define t_HISTORY 20
 #define t_EOL 255
 
 

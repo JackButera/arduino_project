@@ -9,9 +9,11 @@
 #include "clock.h"
 
 
-#define def_COUNT 20
+#define def_COUNT 21
 
 #define NUM_LEDS 1
+
+int eeAddress = 0;
 
 CRGB leds[NUM_LEDS];
 int userRED = 255;
@@ -66,6 +68,7 @@ static const char definesArr[def_COUNT][4] = {
     {'T', 'E', 4, t_TEMP},
     {'A', 'D', 3, t_ADD},
     {'R', 'G', 3, t_RGB},
+    {'H', 'I', 7, t_HISTORY},
     {'E','O',3,char(t_EOL)}
 };
 
@@ -386,7 +389,7 @@ void five_SECOND_TEMP(){
     }
 }
 
-void temp_AND_HUMIDITY_HISTORY(){
+void write_TO_EEPROM(){
     static long int timer = 0;
     if (timer<millis()){
         TimeStamp curr = {
@@ -397,16 +400,24 @@ void temp_AND_HUMIDITY_HISTORY(){
             Clock.read().Year,
             Clock.read().Month,
             Clock.read().Day
-
         };
-        // Serial.print("Temp: "); Serial.println( curr.temperature );
-        // Serial.print("Humidity: "); Serial.println( curr.humidity );
-        // Serial.print("Hour: "); Serial.println( curr.hour );
-        // Serial.print("Minute: "); Serial.println( curr.minute );
-        // Serial.print("Year: "); Serial.println( curr.year );
-        // Serial.print("Month: "); Serial.println( curr.month );
-        // Serial.print("Day: "); Serial.println( curr.day );
+        
+        EEPROM.put(eeAddress, curr);
+        eeAddress += sizeof(curr);
         timer=millis()+900000;
+    }
+}
+
+void temp_HISTORY(){
+    for (int i = 0; i < eeAddress; i+= 7){
+        Serial.print("Temp: "); Serial.print( EEPROM[i] ); Serial.print(" *C "); 
+        Serial.print("Humidity: "); Serial.print( EEPROM[i+1] ); Serial.println(" RH%");
+        Serial.print("On: "); Serial.print(EEPROM[i+5]); Serial.print('/');
+        Serial.print(EEPROM[i+6]); Serial.print('/');
+        Serial.println(EEPROM[i+4]);
+        Serial.print("At: "); Serial.print(EEPROM[i+2]); Serial.print(':');
+        Serial.println(EEPROM[i+3]);
+        Serial.println();
     }
 }
 
@@ -466,7 +477,7 @@ void loop(){
     // leds[0] = CRGB(50, 100, 150);
     // FastLED.show();
     five_SECOND_TEMP();
-    temp_AND_HUMIDITY_HISTORY();
+    write_TO_EEPROM();
     RGB_BLINK();
     d13_BLINK(); //starts D13 blinking
     led_BLINK(); //start LED blinking
@@ -831,6 +842,18 @@ void loop(){
                         default:
                             showError();
                         break; 
+                    
+                    case t_TEMP:
+                        switch (tokenBuffer[1]){
+                            case t_HISTORY:
+                                switch (tokenBuffer[2]){
+                                    case t_EOL:
+                                        temp_HISTORY();
+                                    break;
+                                }
+                            break;
+                        }
+                    break;
                     // default:
                     //     if (!setTIME){
                     //         showError();
