@@ -18,6 +18,8 @@
 #define t_ADD 18
 #define t_RGB 19
 #define t_HISTORY 20
+#define t_HIGH 21
+#define t_LOW 22
 #define t_EOL 255
 
 

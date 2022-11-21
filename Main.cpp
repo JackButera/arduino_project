@@ -9,7 +9,7 @@
 #include "clock.h"
 
 
-#define def_COUNT 21
+#define def_COUNT 23
 
 #define NUM_LEDS 1
 
@@ -69,6 +69,8 @@ static const char definesArr[def_COUNT][4] = {
     {'A', 'D', 3, t_ADD},
     {'R', 'G', 3, t_RGB},
     {'H', 'I', 7, t_HISTORY},
+    {'H', 'I', 4, t_HIGH},
+    {'L', 'O', 3, t_LOW},
     {'E','O',3,char(t_EOL)}
 };
 
@@ -419,6 +421,22 @@ void temp_HISTORY(){
         Serial.println(EEPROM[i+3]);
         Serial.println();
     }
+}
+
+void temp_HIGH_LOW(){
+    byte high = 0;
+    byte low = 1000;
+    for(byte i = 0; i < eeAddress/7; i++){
+        if(EEPROM[i] > high){
+            high = EEPROM[i];
+        }
+        if(EEPROM[i] < low){
+            low = EEPROM[i];
+        }
+    }
+    Serial.print("HIGHEST TEMP: "); Serial.print(high); Serial.println(" *C ");
+    Serial.print("LOWEST TEMP: "); Serial.print(low); Serial.println(" *C ");
+
 }
 
 void RGB_ON(){
@@ -835,6 +853,9 @@ void loop(){
                                         RGB_goBlink = true;
                                         RGB_BLINK();
                                     break;
+                                    default:
+                                        showError();
+                                    break;
                                 }
                                      
                         }
@@ -850,10 +871,29 @@ void loop(){
                                     case t_EOL:
                                         temp_HISTORY();
                                     break;
+                                    default:
+                                        showError();
+                                    break;
+                                }
+                            break;
+                            case t_HIGH:
+                                switch (tokenBuffer[2]){
+                                    case t_LOW:
+                                        switch (tokenBuffer[3]){
+                                            case t_EOL:
+                                                temp_HIGH_LOW();
+                                            break;
+                                            default:
+                                                showError();
+                                            break;
+                                        }
+                                    break;
                                 }
                             break;
                         }
                     break;
+
+                            
                     // default:
                     //     if (!setTIME){
                     //         showError();
