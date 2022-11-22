@@ -6,20 +6,20 @@
 #include <EEPROM.h>
 
 #include "led_controller.h"
-//#include "clock.h"
+
+#define def_COUNT 23 //number of defines
+
+#define NUM_LEDS 1 //number of leds
+
+int eeAddress = 0; //element tracker for EEPROM
+
+CRGB leds[NUM_LEDS]; //initilizing led
+unsigned int userRED = 255; //setting led red value
+unsigned int userGREEN = 255; //setting led green value
+unsigned int userBLUE = 255; //setting led blue value
 
 
-#define def_COUNT 23
-
-#define NUM_LEDS 1
-
-int eeAddress = 0;
-
-CRGB leds[NUM_LEDS];
-unsigned int userRED = 255;
-unsigned int userGREEN = 255;
-unsigned int userBLUE = 255;
-
+//struct for holding data in EEPROM
 struct TimeStamp {
     byte temperature;
     byte humidity;
@@ -30,8 +30,8 @@ struct TimeStamp {
     byte day;
 };
 
-byte currTemp;
-byte currHumid;
+byte currTemp; //holds current temperature reading
+byte currHumid; //holds current humidity reading
 
 
 
@@ -48,12 +48,6 @@ char buffer[MAX_BUF]; //string buffer
 char parsedString[MAX_ARGS][MAX_BUF]; //hold the parsed string
 uint8_t wordNum = 0; //number of words in parsed string
 uint8_t charNum = 0; //number of letters for each word in parsed string
-
-byte wordDateNum = 0;
-byte charDateNum = 0;
-byte wordTimeNum = 0;
-byte charTimeNum = 0;
-
 
 //definitions array for checking input
 static const char definesArr[def_COUNT][4] = {
@@ -94,13 +88,13 @@ char led_Previous = 'R'; //status of last color led input, 'O'->OFF, 'R'->RED, '
 static bool d13_goBlink = false; //blink booolen to tell D13 to blink or not
 static bool led_goBlink = false; //blink booolen to tell LED to blink or not
 static bool led_goALTERNATE = false; //alternates led colors if true
-static bool ledForce = false;
-static bool d13Force = false;
+static bool ledForce = false; //forces led blink
+static bool d13Force = false; //forces d13 blink
 
-int RGB_brightness = 30;
-static bool RGB_status = 0;
-static bool RGB_goBlink = false;
-static bool RGBForce = false;
+int RGB_brightness = 30; //preset brightness for RGB
+static bool RGB_status = 0; //rgb status
+static bool RGB_goBlink = false; //whether or not RGB is blinking
+static bool RGBForce = false; //forces rgb blink
 
 byte hiByte; //upper half of user input for set blink
 byte loByte; //lower half of user input for set blink
@@ -108,14 +102,14 @@ unsigned int combinedVal = 500; //hiByte and loByte together (hiByte + loByte)
 
 static bool prompt = true; //determines if main loop is being run for the first time
 
-long addedNum = 0;
+long addedNum = 0; //final value for add command
 
-int pinDHT22 = 2;
-SimpleDHT22 dht22(pinDHT22);
-static bool setTIME = false;
-DS3231_Simple Clock;
-DateTime MyDateAndTime;
+int pinDHT22 = 2; //pin for DHT
+SimpleDHT22 dht22(pinDHT22); //initializing dht
+DS3231_Simple Clock; //initilizing clock
+DateTime MyDateAndTime; //initializing MyDateAndTime for changing clock
 
+//initializers for changing clock
 byte month = 1;
 byte day = 1;
 byte year = 0;
@@ -167,18 +161,18 @@ void clearParsedString(char arr[MAX_ARGS][MAX_BUF]){
 
 //takes parsed string and definitions array and fills the token buffer based on the input
 void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][4]){
-    bool num1 = false;
-    bool num2 = false;
-    bool missingWord = false;
+    bool num1 = false; //for checking if add number 1 is in range
+    bool num2 = false; //for checking if add number 2 is in range
     for (byte i = 0; i < MAX_ARGS; i++){
         for (byte j = 0; j < def_COUNT; j++){
-            if ((parsedStr[i][0] == defsArr[j][0])
+            if ((parsedStr[i][0] == defsArr[j][0]) //for commands that don't contain numbers
             && (parsedStr[i][1] == defsArr[j][1])
             && (strlen(parsedStr[i]) == defsArr[j][2])){
                 tokenBuffer[i] = defsArr[j][3];
                 tokenBuffer[i+1] = t_EOL;               
             }
 
+            //for commands that contain numbers
             else if(isDigit(parsedStr[i][0]) || (tokenBuffer[0] == t_ADD && parsedStr[i][0] == '-' && isDigit(parsedStr[i][1]))){
                 if (tokenBuffer[0] == t_SET && tokenBuffer[1] == t_BLINK){
                     tokenBuffer[i] = t_WORD;
@@ -193,6 +187,7 @@ void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][
                     }
                 }
                 
+                //adding to token buffer for add
                 else if (tokenBuffer[0] == t_ADD){
                     if (i == 1 && (strtol(parsedStr[i], NULL, 0) <= 32767 && strtol(parsedStr[i], NULL, 0) >=  -32767)){
                         addedNum = strtol(parsedStr[i], NULL, 0);
@@ -212,6 +207,8 @@ void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][
                                        
                 }
 
+
+                //adding to token buffer for rgb
                 else if (tokenBuffer[0] == t_RGB){
                     tokenBuffer[1] = t_WORD;
                     if (atoi(parsedStr[i]) <= 255){
@@ -223,6 +220,8 @@ void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][
                     }
                     
                 }
+
+                //adding to token buffer for set time
                 else if (tokenBuffer[0] == t_SET && tokenBuffer[1] == t_TIME){
                     if (i == 2){
                         
@@ -297,15 +296,6 @@ void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][
             }
         }
     }
-    // Serial.println(tokenBuffer[0]);
-    // Serial.println(tokenBuffer[1]);
-    // Serial.println(tokenBuffer[2]);
-    // Serial.println(tokenBuffer[3]);
-    // Serial.println(tokenBuffer[4]);
-    // Serial.println(tokenBuffer[5]);
-    // Serial.println(tokenBuffer[6]);
-    // Serial.println(tokenBuffer[7]);
-    // Serial.println(tokenBuffer[8]);
 }
 
 //applies the number entered with 'SET BLINK' to the interval variable for blinking 
@@ -316,6 +306,8 @@ void applyUserInterval(){
     }
 }
 
+
+//adds two numbers
 void ADD(){
     long hi = 0;
     long lo;
@@ -398,21 +390,23 @@ void led_BLINK(){
         } 
     }
 }
-byte ledBlinkRed = 0b01110111;
-byte ledBlinkGreen = 0b10111011;
+
+
+byte ledBlinkRed = 0b01110111; //red led blinking byte
+byte ledBlinkGreen = 0b10111011; //green led blinking byte
+//blinks the led using byte rotation
 void led_BLINK2(){
     static long int ledTimer = 0;
-    
-    if ((ledTimer < millis() && led_goBlink && (led_Previous == 'R'))
+    if ((ledTimer < millis() && led_goBlink && (led_Previous == 'R')) //if led was red
      || ((ledForce == true) && (led_Previous == 'R'))){
-        if (ledBlinkRed & 1 == 1){
-            if(ledBlinkRed >> 1 & 1 == 1){
+        if (ledBlinkRed & 1 == 1){ 
+            if(ledBlinkRed >> 1 & 1 == 1){ //if '11'
                 led_status = 'O';
                 ledTimer = millis()+interval;
                 led_OFF();
                 ledForce = false;
             }
-            else{
+            else{ //if '10'
                 led_status = 'R';
                 ledTimer = millis()+interval;
                 led_RED();
@@ -427,11 +421,11 @@ void led_BLINK2(){
         }
     }
 
-    if ((ledTimer < millis() && led_goBlink && (led_Previous == 'G'))
+    if ((ledTimer < millis() && led_goBlink && (led_Previous == 'G')) //if led was green
      || ((ledForce == true) && (led_Previous == 'G'))){
 
         if (ledBlinkGreen & 1 == 1){
-            if(ledBlinkGreen >> 1 & 1 == 1){
+            if(ledBlinkGreen >> 1 & 1 == 1){ //if '11'
                 led_status = 'O';
                 ledTimer = millis()+interval;
                 led_OFF();
@@ -439,7 +433,7 @@ void led_BLINK2(){
             }
         }
         else{
-            if(ledBlinkGreen >> 1 & 1 == 1){
+            if(ledBlinkGreen >> 1 & 1 == 1){ //if '01'
                 led_status = 'G';
                 ledTimer = millis()+interval;
                 led_GREEN();
@@ -531,6 +525,7 @@ void status_LEDS(){
     
 }
 
+//prints the current temperature and humidity
 void current_TEMP(){
     byte temperature = 0;
     byte humidity = 0;
@@ -547,7 +542,8 @@ void current_TEMP(){
 }
 
 
-bool showTemp = false;
+bool showTemp = false; //bool to determine whether or not to loop five second temp
+//prints the temp and humidity every 5 seconds
 void five_SECOND_TEMP(){
     static long int timer = 0;
 
@@ -559,6 +555,7 @@ void five_SECOND_TEMP(){
     }
 }
 
+//writes time and temp data to EEPROM every 15 minutes
 void write_TO_EEPROM(){
     static long int timer = 0;
     if (timer<millis()){
@@ -579,6 +576,7 @@ void write_TO_EEPROM(){
     }
 }
 
+//prints all data in EEPROM
 void temp_HISTORY(){
     for (int i = 0; i < eeAddress; i+= 7){
         Serial.print("Temp: "); Serial.print( EEPROM[i] ); Serial.print(" *C "); 
@@ -591,6 +589,8 @@ void temp_HISTORY(){
         Serial.println();
     }
 }
+
+//prints the current time
 void current_TIME(){
     MyDateAndTime = Clock.read();
     Serial.print(MyDateAndTime.Month); Serial.print('/');
@@ -602,7 +602,7 @@ void current_TIME(){
     
 }
 
-
+//set the current time
 void set_TIME()
 {
     MyDateAndTime.Month = tokenBuffer[2];
@@ -614,9 +614,10 @@ void set_TIME()
     Clock.write(MyDateAndTime);
 }
 
+//prints the highest and lowest temp from EEPROM data
 void temp_HIGH_LOW(){
-    byte high = 0;
-    byte low = 1000;
+    int high = 0;
+    int low = 1000;
     for(byte i = 0; i < eeAddress/7; i++){
         if(EEPROM[i] > high){
             high = EEPROM[i];
@@ -630,6 +631,7 @@ void temp_HIGH_LOW(){
 
 }
 
+//turns RGB on
 void RGB_ON(){
     leds[0].red = userRED;
     leds[0].green = userGREEN;
@@ -637,11 +639,13 @@ void RGB_ON(){
     FastLED.show();
 }
 
+//turns RGB off
 void RGB_OFF(){
     leds[0] = CRGB::Black;
     FastLED.show();
 }
 
+//changes the color of the RGB
 void change_RGB(){
     userGREEN = tokenBuffer[2];;
     userRED = tokenBuffer[3];
@@ -652,9 +656,10 @@ void change_RGB(){
     FastLED.show();
 }
 
+
+//blinks the RGB
 void RGB_BLINK(){
     static long int timer = 0;
-    //Serial.println("calling");
     if((timer<millis() && RGB_goBlink) || RGBForce == true){
 
         RGBForce = false;
@@ -671,7 +676,7 @@ void RGB_BLINK(){
 
 
 
-
+//shows error
 void showError(){
     Serial.println(F("*INVALID COMMAND"));
 }
@@ -960,10 +965,7 @@ void loop(){
                             case t_TIME:
                                 switch (tokenBuffer[8]){
                                     case t_EOL:
-                                        //setTIME = true;
                                         set_TIME();
-                                        //Clock.begin();
-                                        //Clock.promptForTimeAndDate(Serial);
                                     break;
                                     default:
                                         showError();
@@ -1111,19 +1113,7 @@ void loop(){
                                 showError();
                             break; 
                         }
-                    break;
-                    
-
-                            
-                    // default:
-                    //     if (!setTIME){
-                    //         showError();
-                    //     }
-                    // break;
-
-
-
-                    
+                    break;                    
             }
         }
         
