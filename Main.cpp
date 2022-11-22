@@ -519,6 +519,21 @@ void status_LEDS(){
             Serial.println(F("OFF"));
         }
     }
+    if (RGB_goBlink){
+        Serial.print("> RGB BLINKING ");
+        Serial.print(userGREEN); Serial.print(' ');
+        Serial.print(userRED); Serial.print(' ');
+        Serial.println(userBLUE);
+    }
+    else if(!RGB_goBlink){
+        Serial.print("> RGB ");
+        if (RGB_status){
+            Serial.println("ON");
+        }
+        else{
+            Serial.println("OFF");
+        }
+    }
     
     Serial.print("> BLINK INTERVAL SET TO: ");
     Serial.println(interval);
@@ -636,12 +651,14 @@ void RGB_ON(){
     leds[0].red = userRED;
     leds[0].green = userGREEN;
     leds[0].blue = userBLUE;
+    //RGB_status = 1;
     FastLED.show();
 }
 
 //turns RGB off
 void RGB_OFF(){
     leds[0] = CRGB::Black;
+    //RGB_status = 0;
     FastLED.show();
 }
 
