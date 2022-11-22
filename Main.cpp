@@ -489,7 +489,7 @@ void status_LEDS(){
         }
     }
     Serial.print(F("> LED "));
-    if (led_goBlink){
+    if (led_goBlink  && !led_goALTERNATE){
         Serial.print(F("BLINKING "));
         if(led_Previous == 'R'){
             Serial.println(F("RED"));
@@ -498,7 +498,7 @@ void status_LEDS(){
             Serial.println(F("GREEN"));
         }
     }
-    else if(!led_goBlink){
+    else if(!led_goBlink && !led_goALTERNATE){
         if(led_Previous == 'R'){
             if (led_status == 'R'){
                 Serial.println(F("RED"));
@@ -519,16 +519,25 @@ void status_LEDS(){
             Serial.println(F("OFF"));
         }
     }
+    else if(led_goALTERNATE){
+        Serial.println("ALTERNATING");
+    }
+
     if (RGB_goBlink){
-        Serial.print("> RGB BLINKING ");
+        Serial.print("> RGB BLINKING (");
         Serial.print(userGREEN); Serial.print(' ');
         Serial.print(userRED); Serial.print(' ');
-        Serial.println(userBLUE);
+        Serial.print(userBLUE);
+        Serial.println(')');
     }
     else if(!RGB_goBlink){
         Serial.print("> RGB ");
         if (RGB_status){
-            Serial.println("ON");
+            Serial.print("ON (");
+            Serial.print(userGREEN); Serial.print(", ");
+            Serial.print(userRED); Serial.print(", ");
+            Serial.print(userBLUE);
+            Serial.println(')');
         }
         else{
             Serial.println("OFF");
@@ -651,14 +660,14 @@ void RGB_ON(){
     leds[0].red = userRED;
     leds[0].green = userGREEN;
     leds[0].blue = userBLUE;
-    //RGB_status = 1;
+    RGB_status = 1;
     FastLED.show();
 }
 
 //turns RGB off
 void RGB_OFF(){
     leds[0] = CRGB::Black;
-    //RGB_status = 0;
+    RGB_status = 0;
     FastLED.show();
 }
 
@@ -670,6 +679,7 @@ void change_RGB(){
     leds[0].green = tokenBuffer[2];
     leds[0].red = tokenBuffer[3];
     leds[0].blue = tokenBuffer[4];
+    RGB_status = 1;
     FastLED.show();
 }
 
@@ -678,14 +688,16 @@ void change_RGB(){
 void RGB_BLINK(){
     static long int timer = 0;
     if((timer<millis() && RGB_goBlink) || RGBForce == true){
-
+        
         RGBForce = false;
-        RGB_status= !RGB_status;
         timer= millis()+interval;
         if (RGB_status){
+            
+            RGB_status = 0;
             RGB_OFF();
         }
         else{
+            RGB_status = 1;
             RGB_ON();
         }
     }
