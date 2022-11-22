@@ -84,7 +84,7 @@ unsigned long msPrev = 0; //last time something was ran in proram
 unsigned long interval = 500; //blink interval time 
 static bool d13_status = 0; //whether or not D13 is on or off
 char led_status = 'O'; //status of current led, 'O'->OFF, 'R'->RED, 'G'->GREEN
-char led_Previous = 'O'; //status of last color led input, 'O'->OFF, 'R'->RED, 'G'->GREEN
+char led_Previous = 'R'; //status of last color led input, 'O'->OFF, 'R'->RED, 'G'->GREEN
 static bool d13_goBlink = false; //blink booolen to tell D13 to blink or not
 static bool led_goBlink = false; //blink booolen to tell LED to blink or not
 static bool led_goALTERNATE = false; //alternates led colors if true
@@ -289,34 +289,59 @@ void led_BLINK(){
         } 
     }
 }
-
+byte ledBlinkRed = 0b01110111;
+byte ledBlinkGreen = 0b10111011;
 void led_BLINK2(){
     static long int ledTimer = 0;
-    byte ledBlinkRed = 0b01110111;
-    byte ledBlinkGreen = 0b10111011;
-    for (byte i = 0; i < 8; i++){
+    
+    
+    if ((ledTimer < millis() && led_goBlink && (led_Previous == 'R'))
+     || ((ledForce == true) && (led_Previous == 'R'))){
         if (ledBlinkRed & 1 == 1){
             if(ledBlinkRed >> 1 & 1 == 1){
+                led_status = 'O';
+                ledTimer = millis()+interval;
                 led_OFF();
+                ledForce = false;
             }
             else{
+                led_status = 'R';
+                ledTimer = millis()+interval;
                 led_RED();
+                ledForce = false;
             }
+            
         }
         ledBlinkRed = ledBlinkRed >> 2;
+        if(ledBlinkRed == 0){
+            ledBlinkRed = 0b01110111;
+        }
     }
-    for (byte i = 0; i < 8; i++){
+
+    if ((ledTimer < millis() && led_goBlink && (led_Previous == 'G'))
+     || ((ledForce == true) && (led_Previous == 'G'))){
+
         if (ledBlinkGreen & 1 == 1){
             if(ledBlinkGreen >> 1 & 1 == 1){
+                led_status = 'O';
+                ledTimer = millis()+interval;
                 led_OFF();
+                ledForce = false;
             }
         }
         else{
             if(ledBlinkGreen >> 1 & 1 == 1){
+                led_status = 'G';
+                ledTimer = millis()+interval;
                 led_GREEN();
+                ledForce = false;
             }
         }
         ledBlinkGreen = ledBlinkGreen >> 2;
+        if(ledBlinkGreen == 0){
+            ledBlinkGreen = 0b10111011;
+        }
+
     }
 }
 
@@ -530,7 +555,7 @@ void loop(){
     write_TO_EEPROM();
     RGB_BLINK();
     d13_BLINK(); //starts D13 blinking
-    led_BLINK(); //start LED blinking
+    led_BLINK2(); //start LED blinking
     led_ALTERNATE(); //start LED ALTERNATEping colors
     char c = '\0'; //temp value for each character the user enters
     currentMillis = millis(); //sets current time to how much time has passed in the program so far
@@ -671,7 +696,7 @@ void loop(){
                                     case t_EOL:                                     
                                         led_goALTERNATE = false;
                                         led_goBlink = true;
-                                        led_BLINK();
+                                        led_BLINK2();
                                     break;
                                     default:
                                         showError();
@@ -879,6 +904,7 @@ void loop(){
                                         showError();
                                     break;
                                 }
+                            break;
                             case t_BLINK:
                                 switch (tokenBuffer[2]){
                                     case t_EOL:
@@ -889,6 +915,7 @@ void loop(){
                                         showError();
                                     break;
                                 }
+                            break;
                                      
                         }
                         break;
