@@ -6,7 +6,7 @@
 #include <EEPROM.h>
 
 #include "led_controller.h"
-#include "clock.h"
+//#include "clock.h"
 
 
 #define def_COUNT 23
@@ -16,9 +16,9 @@
 int eeAddress = 0;
 
 CRGB leds[NUM_LEDS];
-int userRED = 255;
-int userGREEN = 255;
-int userBLUE = 255;
+unsigned int userRED = 255;
+unsigned int userGREEN = 255;
+unsigned int userBLUE = 255;
 
 struct TimeStamp {
     byte temperature;
@@ -35,7 +35,7 @@ byte currHumid;
 
 
 
-#define MAX_ARGS 6 //max arguments for token buffer
+#define MAX_ARGS 9 //max arguments for token buffer
 #define MAX_BUF 30 // max length of string buffer
 
 static const uint8_t version[3] = {1,0,0}; //program version
@@ -48,6 +48,12 @@ char buffer[MAX_BUF]; //string buffer
 char parsedString[MAX_ARGS][MAX_BUF]; //hold the parsed string
 uint8_t wordNum = 0; //number of words in parsed string
 uint8_t charNum = 0; //number of letters for each word in parsed string
+
+byte wordDateNum = 0;
+byte charDateNum = 0;
+byte wordTimeNum = 0;
+byte charTimeNum = 0;
+
 
 //definitions array for checking input
 static const char definesArr[def_COUNT][4] = {
@@ -96,9 +102,9 @@ static bool RGB_status = 0;
 static bool RGB_goBlink = false;
 static bool RGBForce = false;
 
-uint8_t hiByte; //upper half of user input for set blink
-uint8_t loByte; //lower half of user input for set blink
-unsigned long combinedVal = 500; //hiByte and loByte together (hiByte + loByte)
+byte hiByte; //upper half of user input for set blink
+byte loByte; //lower half of user input for set blink
+unsigned int combinedVal = 500; //hiByte and loByte together (hiByte + loByte)
 
 static bool prompt = true; //determines if main loop is being run for the first time
 
@@ -108,6 +114,14 @@ int pinDHT22 = 2;
 SimpleDHT22 dht22(pinDHT22);
 static bool setTIME = false;
 DS3231_Simple Clock;
+DateTime MyDateAndTime;
+
+byte month = 1;
+byte day = 1;
+byte year = 0;
+byte hour = 0;
+byte minute = 0;
+byte second = 0;
 
 
 //checks whether or not a string contains only numbers
@@ -153,6 +167,8 @@ void clearParsedString(char arr[MAX_ARGS][MAX_BUF]){
 
 //takes parsed string and definitions array and fills the token buffer based on the input
 void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][4]){
+    bool num1 = false;
+    bool num2 = false;
     bool missingWord = false;
     for (byte i = 0; i < MAX_ARGS; i++){
         for (byte j = 0; j < def_COUNT; j++){
@@ -168,53 +184,146 @@ void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][
                     tokenBuffer[i] = t_WORD;
                     userBlinkLong = strtol(parsedStr[i], NULL, 0);
                     if (userBlinkLong <= 65535){
-                        hiByte = (userBlinkLong >> 8);
-                        loByte = (userBlinkLong);
-                        tokenBuffer[3] = int(hiByte);
-                        tokenBuffer[4] = int(loByte);
+                        hiByte = userBlinkLong >> 8;
+                        loByte = userBlinkLong;
+                        tokenBuffer[3] = hiByte;
+                        tokenBuffer[4] = loByte;
                         tokenBuffer[5] = t_EOL;
 
                     }
                 }
+                
                 else if (tokenBuffer[0] == t_ADD){
-                    addedNum = strtol(parsedStr[i], NULL, 0);
-                    if (i == 1){
-                        tokenBuffer[1] = int((addedNum >> 8));
-                        tokenBuffer[2] = int((addedNum));
+                    if (i == 1 && (strtol(parsedStr[i], NULL, 0) <= 32767 && strtol(parsedStr[i], NULL, 0) >=  -32767)){
+                        addedNum = strtol(parsedStr[i], NULL, 0);
+                        tokenBuffer[1] = addedNum >> 8;
+                        tokenBuffer[2] = addedNum;
+                        num1 = true;
                     }
-                    else if(i == 2){
-                        tokenBuffer[3] = int((addedNum >> 8));
-                        tokenBuffer[4] = int((addedNum)); 
+                    else if(i == 2 && (strtol(parsedStr[i], NULL, 0) <= 32767 && strtol(parsedStr[i], NULL, 0) >=  -32767)){
+                        addedNum = strtol(parsedStr[i], NULL, 0);
+                        tokenBuffer[3] = addedNum >> 8;
+                        tokenBuffer[4] = addedNum;
+                        num2 = true;
                     }
-                    tokenBuffer[5] = t_EOL;                    
+                    if (num1 && num2){
+                        tokenBuffer[5] = t_EOL;
+                    }
+                                       
                 }
 
                 else if (tokenBuffer[0] == t_RGB){
                     tokenBuffer[1] = t_WORD;
-                    tokenBuffer[i+1] = atoi(parsedStr[i]);
-                    tokenBuffer[i+2] = t_EOL;
+                    if (atoi(parsedStr[i]) <= 255){
+                        tokenBuffer[i+1] = atoi(parsedStr[i]);
+                        tokenBuffer[i+2] = t_EOL;
+                    }
+                    else{
+                        tokenBuffer[0] = t_EOL;
+                    }
+                    
                 }
+                else if (tokenBuffer[0] == t_SET && tokenBuffer[1] == t_TIME){
+                    if (i == 2){
+                        
+                        if (atoi(parsedStr[i]) <= 12 && atoi(parsedStr[i]) > 0){
+                            month = atoi(parsedStr[i]);
+                            
+                        }
 
+                        else{
+                            tokenBuffer[0] = t_EOL;
+                        }
+                        tokenBuffer[i] = month;
+                        
+                    }
+                    else if (i == 3){
+                        
+                        if (atoi(parsedStr[i]) <= 31 && atoi(parsedStr[i]) > 0){
+                            day = atoi(parsedStr[i]);
+                            
+                        }
+                        else{
+                            tokenBuffer[0] = t_EOL;
+                        }
+                        tokenBuffer[i] = day;
+                    }
+                    else if (i == 4){
+                        
+                        if (atoi(parsedStr[i]) <= 99 && atoi(parsedStr[i]) >= 0){
+                            year = atoi(parsedStr[i]);
+                            
+                        }
+                        else{
+                            tokenBuffer[0] = t_EOL;
+                        }
+                        tokenBuffer[i] = year;
+                    }
+                    else if (i == 5){
+                        
+                        if (atoi(parsedStr[i]) <=23 && atoi(parsedStr[i]) >= 0){
+                            hour = atoi(parsedStr[i]);
+                            
+                        }
+                        else{
+                            tokenBuffer[0] = t_EOL;
+                        }
+                        tokenBuffer[i] = hour;
+                    }
+                    else if (i == 6){
+                        
+                        if (atoi(parsedStr[i]) < 60 && atoi(parsedStr[i]) >= 0){
+                            minute = atoi(parsedStr[i]);
+                            
+                        }
+                        else{
+                            tokenBuffer[0] = t_EOL;
+                        }
+                        tokenBuffer[i] = minute;
+                    }
+                    else if (i == 7){
+                        
+                        if (atoi(parsedStr[i]) < 60 && atoi(parsedStr[i]) >= 0){
+                            second = atoi(parsedStr[i]);
+                            
+                        }
+                        else{
+                            tokenBuffer[0] = t_EOL;
+                        }
+                        tokenBuffer[i] = second;
+                    }
+                    tokenBuffer[8] = t_EOL;
+                }
             }
         }
     }
-    
+    // Serial.println(tokenBuffer[0]);
+    // Serial.println(tokenBuffer[1]);
+    // Serial.println(tokenBuffer[2]);
+    // Serial.println(tokenBuffer[3]);
+    // Serial.println(tokenBuffer[4]);
+    // Serial.println(tokenBuffer[5]);
+    // Serial.println(tokenBuffer[6]);
+    // Serial.println(tokenBuffer[7]);
+    // Serial.println(tokenBuffer[8]);
 }
 
 //applies the number entered with 'SET BLINK' to the interval variable for blinking 
 void applyUserInterval(){
-    combinedVal = (long(tokenBuffer[3]<<8)|long(tokenBuffer[4]));
+    combinedVal = tokenBuffer[4] | (tokenBuffer[3] << 8);
     if ((combinedVal >= 0) && (combinedVal <= 65535)){
         interval = combinedVal;
     }
 }
 
 void ADD(){
-    long printValue = 0;
-    printValue = (long(tokenBuffer[1]<<8)|long(tokenBuffer[2]));
-    printValue += (long(tokenBuffer[3]<<8)|long(tokenBuffer[4]));
+    long hi = 0;
+    long lo;
+    hi = tokenBuffer[2] | (tokenBuffer[1] << 8);
+    lo = tokenBuffer[4] | (tokenBuffer[3] << 8);
+    long printvalue = hi + lo;
     Serial.print("EQUALS: ");
-    Serial.println(printValue);
+    Serial.println(printvalue);
 }
 
 //turns D13 on
@@ -294,7 +403,6 @@ byte ledBlinkGreen = 0b10111011;
 void led_BLINK2(){
     static long int ledTimer = 0;
     
-    
     if ((ledTimer < millis() && led_goBlink && (led_Previous == 'R'))
      || ((ledForce == true) && (led_Previous == 'R'))){
         if (ledBlinkRed & 1 == 1){
@@ -313,6 +421,7 @@ void led_BLINK2(){
             
         }
         ledBlinkRed = ledBlinkRed >> 2;
+        
         if(ledBlinkRed == 0){
             ledBlinkRed = 0b01110111;
         }
@@ -437,13 +546,15 @@ void current_TEMP(){
     Serial.print((int)humidity); Serial.println(" RH%");
 }
 
+
+bool showTemp = false;
 void five_SECOND_TEMP(){
     static long int timer = 0;
 
-    if (timer<millis()){
+    if (timer<millis() && showTemp == true){
         dht22.read(&currTemp, &currHumid, NULL);
-        // Serial.print((int)currTemp); Serial.print(" *C, ");
-        // Serial.print((int)currHumid); Serial.println(" RH%");
+        Serial.print((int)currTemp); Serial.print(" *C, ");
+        Serial.print((int)currHumid); Serial.println(" RH%");
         timer= millis()+5000;
     }
 }
@@ -451,6 +562,7 @@ void five_SECOND_TEMP(){
 void write_TO_EEPROM(){
     static long int timer = 0;
     if (timer<millis()){
+        dht22.read(&currTemp, &currHumid, NULL);
         TimeStamp curr = {
             int(currTemp),
             int(currHumid),
@@ -478,6 +590,28 @@ void temp_HISTORY(){
         Serial.println(EEPROM[i+3]);
         Serial.println();
     }
+}
+void current_TIME(){
+    MyDateAndTime = Clock.read();
+    Serial.print(MyDateAndTime.Month); Serial.print('/');
+    Serial.print(MyDateAndTime.Day); Serial.print('/');
+    Serial.print(MyDateAndTime.Year); Serial.print(' ');
+    Serial.print(MyDateAndTime.Hour); Serial.print(':');
+    Serial.print(MyDateAndTime.Minute); Serial.print(':');
+    Serial.print(MyDateAndTime.Second); Serial.println('\n');
+    
+}
+
+
+void set_TIME()
+{
+    MyDateAndTime.Month = tokenBuffer[2];
+    MyDateAndTime.Day = tokenBuffer[3];
+    MyDateAndTime.Year = tokenBuffer[4];
+    MyDateAndTime.Hour = tokenBuffer[5];
+    MyDateAndTime.Minute = tokenBuffer[6];
+    MyDateAndTime.Second = tokenBuffer[7];
+    Clock.write(MyDateAndTime);
 }
 
 void temp_HIGH_LOW(){
@@ -584,7 +718,7 @@ void loop(){
     //if 'enter' is clicked, checks what user typed and applies to arduino
     if (c == 13){
         Serial.print("\n");
-        led_BLINK2();
+        
         //parses the string the user entered
         for(int i = 0; i < strlen(buffer); i++){
             if(!isspace(buffer[i])){
@@ -606,6 +740,7 @@ void loop(){
         //cheking token buffer and applying to arduino
         if (currentMillis - msStart > 500)
         {
+            showTemp = false;
             switch (tokenBuffer[0]){
                     case t_D13:
                         switch (tokenBuffer[1])
@@ -744,18 +879,27 @@ void loop(){
                         switch (tokenBuffer[1]){
                                 case t_EOL:
                                     Serial.println(F("The available commands are: "));
-                                    Serial.println(F(">D13 ON"));
-                                    Serial.println(F(">D13 OFF"));
-                                    Serial.println(F(">D13 BLINK"));
-                                    Serial.println(F(">LED GREEN"));
-                                    Serial.println(F(">LED RED"));
-                                    Serial.println(F(">LED OFF"));
-                                    Serial.println(F(">LED BLINK"));
-                                    Serial.println(F(">LED ALTERNATE"));
-                                    Serial.println(F(">SET BLINK <number>"));
-                                    Serial.println(F(">STATUS LEDS"));
-                                    Serial.println(F(">VERSION"));
-                                    Serial.println(F(">HELP"));
+                                    Serial.println(F("->D13 ON"));
+                                    Serial.println(F("->D13 OFF"));
+                                    Serial.println(F("->D13 BLINK"));
+                                    Serial.println(F("->LED GREEN"));
+                                    Serial.println(F("->LED RED"));
+                                    Serial.println(F("->LED OFF"));
+                                    Serial.println(F("->LED BLINK"));
+                                    Serial.println(F("->LED ALTERNATE"));
+                                    Serial.println(F("->SET BLINK <number>"));
+                                    Serial.println(F("->STATUS LEDS"));
+                                    Serial.println(F("->CURRENT TIME"));
+                                    Serial.println(F("->SET TIME"));
+                                    Serial.println(F("->CURRENT TEMP"));
+                                    Serial.println(F("->TEMP HISTORY"));
+                                    Serial.println(F("->ADD <number1> <number2>"));
+                                    Serial.println(F("->RGB <red> <green> <blue>"));
+                                    Serial.println(F("->RGB ON"));
+                                    Serial.println(F("->RGB OFF"));
+                                    Serial.println(F("->RGB BLINK"));
+                                    Serial.println(F("->VERSION"));
+                                    Serial.println(F("->HELP"));
                                     Serial.println();
                                 break;
                                 default:
@@ -813,10 +957,10 @@ void loop(){
                                 }
                             break;
                             case t_TIME:
-                                switch (tokenBuffer[2]){
+                                switch (tokenBuffer[8]){
                                     case t_EOL:
-                                        setTIME = true;
-                                        set_TIME(Serial);
+                                        //setTIME = true;
+                                        set_TIME();
                                         //Clock.begin();
                                         //Clock.promptForTimeAndDate(Serial);
                                     break;
@@ -839,7 +983,8 @@ void loop(){
                             case t_TEMP:
                                 switch(tokenBuffer[2]){
                                     case t_EOL:
-                                        current_TEMP();
+                                        showTemp = true;
+                                        five_SECOND_TEMP();
                                     break;
                                     default:
                                         showError();

@@ -52,4 +52,4 @@ build-uno/Main.cpp.o: Main.cpp \
  /home/jack/Arduino/libraries/FastLED/src/fastspi_bitbang.h \
  /home/jack/Arduino/libraries/FastLED/src/chipsets.h \
  /home/jack/arduino/arduino-1.8.19/hardware/arduino/avr/libraries/EEPROM/src/EEPROM.h \
- led_controller.h clock.h
+ led_controller.h
