@@ -38,7 +38,7 @@ byte currHumid;
 #define MAX_ARGS 9 //max arguments for token buffer
 #define MAX_BUF 30 // max length of string buffer
 
-static const uint8_t version[3] = {1,0,0}; //program version
+static const uint8_t version[3] = {1,0,1}; //program version
 
 unsigned long userBlinkLong; //number the user sets blink to
 
@@ -893,6 +893,7 @@ void loop(){
                                     Serial.println(F("->SET TIME <month> <day> <year> <hour> <minute> <second>"));
                                     Serial.println(F("->CURRENT TEMP"));
                                     Serial.println(F("->TEMP HISTORY"));
+                                    Serial.println(F("->TEMP HIGH LOW"));
                                     Serial.println(F("->ADD <number1> <number2>"));
                                     Serial.println(F("->RGB <red> <green> <blue>"));
                                     Serial.println(F("->RGB ON"));
@@ -1001,6 +1002,9 @@ void loop(){
                                     break;
                                 }
                             break;
+                            default:
+                                showError();
+                            break;
                         }
                     break;
 
@@ -1061,6 +1065,11 @@ void loop(){
                                     break;
                                 }
                             break;
+                            default:
+                                showError();
+                            break; 
+
+                            
                                      
                         }
                         break;
@@ -1092,10 +1101,18 @@ void loop(){
                                             break;
                                         }
                                     break;
+                                        default:
+                                    showError();
+                            break;
+
                                 }
                             break;
+                            default:
+                                showError();
+                            break; 
                         }
                     break;
+                    
 
                             
                     // default:
