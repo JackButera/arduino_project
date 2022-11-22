@@ -890,7 +890,7 @@ void loop(){
                                     Serial.println(F("->SET BLINK <number>"));
                                     Serial.println(F("->STATUS LEDS"));
                                     Serial.println(F("->CURRENT TIME"));
-                                    Serial.println(F("->SET TIME"));
+                                    Serial.println(F("->SET TIME <month> <day> <year> <hour> <minute> <second>"));
                                     Serial.println(F("->CURRENT TEMP"));
                                     Serial.println(F("->TEMP HISTORY"));
                                     Serial.println(F("->ADD <number1> <number2>"));
