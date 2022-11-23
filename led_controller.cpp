@@ -1,8 +1,8 @@
 #include "led_controller.h"
 #include <Arduino.h>
 
-const uint8_t redPin = 12; //red pin led
-const uint8_t greenPin = 11; //green pin led
+const uint8_t redPin = 9; //red pin led
+const uint8_t greenPin = 8; //green pin led
 
 //sets the color of the led
 void setColor(char color){

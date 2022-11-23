@@ -4,14 +4,15 @@
 #include <Wire.h>
 #include <FastLED.h>
 #include <EEPROM.h>
+#include <EtherCard.h>
 
 #include "led_controller.h"
 
-#define def_COUNT 23 //number of defines
+#define def_COUNT 24 //number of defines
 
 #define NUM_LEDS 1 //number of leds
 
-int eeAddress = 0; //element tracker for EEPROM
+int eeAddress = EEPROM[0]; //element tracker for EEPROM
 
 CRGB leds[NUM_LEDS]; //initilizing led
 unsigned int userRED = 255; //setting led red value
@@ -21,7 +22,7 @@ unsigned int userBLUE = 255; //setting led blue value
 
 //struct for holding data in EEPROM
 struct TimeStamp {
-    byte temperature;
+    short temperature;
     byte humidity;
     byte hour;
     byte minute;
@@ -30,8 +31,8 @@ struct TimeStamp {
     byte day;
 };
 
-byte currTemp; //holds current temperature reading
-byte currHumid; //holds current humidity reading
+float currTemp; //holds current temperature reading
+float currHumid; //holds current humidity reading
 
 
 
@@ -73,6 +74,7 @@ static const char definesArr[def_COUNT][4] = {
     {'H', 'I', 7, t_HISTORY},
     {'H', 'I', 4, t_HIGH},
     {'L', 'O', 3, t_LOW},
+    {'C', 'L', 5, t_CLEAR},
     {'E','O',3,char(t_EOL)}
 };
 
@@ -100,8 +102,6 @@ byte hiByte; //upper half of user input for set blink
 byte loByte; //lower half of user input for set blink
 unsigned int combinedVal = 500; //hiByte and loByte together (hiByte + loByte)
 
-static bool prompt = true; //determines if main loop is being run for the first time
-
 long addedNum = 0; //final value for add command
 
 int pinDHT22 = 2; //pin for DHT
@@ -128,7 +128,10 @@ bool isValidNumber(char str[5]){
     return false;
 }
 
-
+//initial prompt when program is run
+void introPrompt(){
+    Serial.println(F(">Welcome to Arduino Command Line Interpreter, enter 'HELP' for list of commands!\n"));
+}
 
 
 //setup function
@@ -140,13 +143,10 @@ void setup(){
     FastLED.setBrightness(RGB_brightness);
     leds[0] = CRGB::Black;
     FastLED.show();
-    Serial.println();
+    introPrompt();
 }
 
-//initial prompt when program is run
-void introPrompt(){
-    Serial.println(F(">Welcome to Arduino Command Line Interpreter, enter 'HELP' for list of commands!\n"));
-}
+
 
 //clears the parsed string for next set of input
 void clearParsedString(char arr[MAX_ARGS][MAX_BUF]){
@@ -156,6 +156,45 @@ void clearParsedString(char arr[MAX_ARGS][MAX_BUF]){
     }
   }
   return;
+}
+
+int myAtoi(char *str){
+    int res = 0; // Initialize result
+
+    // Iterate through all characters of input string and
+    // update result
+    for (int i = 0; str[i] != '\0'; ++i) {
+        if (str[i]> '9' || str[i]<'0')
+            return -1;
+        res = res*10 + str[i] - '0';
+    }
+
+    // return result.
+    return res;
+}
+
+long myAtol(char *str){
+    long res = 0; // Initialize result
+    bool negative = false;
+    // Iterate through all characters of input string and
+    // update result
+    for (int i = 0; str[i] != '\0'; ++i) {
+        if (str[i] == '-'){
+            negative = true;
+            i++;
+        }
+        if (str[i]> '9' || str[i]<'0'){
+            return -1;
+        }
+            
+        res = res*10 + str[i] - '0';
+    }
+    if (negative){
+        res = (-1)*res;
+    }
+
+    // return result.
+    return res;
 }
 
 
@@ -176,7 +215,7 @@ void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][
             else if(isDigit(parsedStr[i][0]) || (tokenBuffer[0] == t_ADD && parsedStr[i][0] == '-' && isDigit(parsedStr[i][1]))){
                 if (tokenBuffer[0] == t_SET && tokenBuffer[1] == t_BLINK){
                     tokenBuffer[i] = t_WORD;
-                    userBlinkLong = strtol(parsedStr[i], NULL, 0);
+                    userBlinkLong = myAtol(parsedStr[i]);
                     if (userBlinkLong <= 65535){
                         hiByte = userBlinkLong >> 8;
                         loByte = userBlinkLong;
@@ -189,14 +228,14 @@ void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][
                 
                 //adding to token buffer for add
                 else if (tokenBuffer[0] == t_ADD){
-                    if (i == 1 && (strtol(parsedStr[i], NULL, 0) <= 32767 && strtol(parsedStr[i], NULL, 0) >=  -32767)){
-                        addedNum = strtol(parsedStr[i], NULL, 0);
+                    if (i == 1 && (myAtol(parsedStr[i]) <= 32767 && myAtol(parsedStr[i]) >=  -32767)){
+                        addedNum = myAtol(parsedStr[i]);
                         tokenBuffer[1] = addedNum >> 8;
                         tokenBuffer[2] = addedNum;
                         num1 = true;
                     }
-                    else if(i == 2 && (strtol(parsedStr[i], NULL, 0) <= 32767 && strtol(parsedStr[i], NULL, 0) >=  -32767)){
-                        addedNum = strtol(parsedStr[i], NULL, 0);
+                    else if(i == 2 && (myAtol(parsedStr[i]) <= 32767 && myAtol(parsedStr[i]) >=  -32767)){
+                        addedNum = myAtol(parsedStr[i]);
                         tokenBuffer[3] = addedNum >> 8;
                         tokenBuffer[4] = addedNum;
                         num2 = true;
@@ -211,8 +250,8 @@ void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][
                 //adding to token buffer for rgb
                 else if (tokenBuffer[0] == t_RGB){
                     tokenBuffer[1] = t_WORD;
-                    if (atoi(parsedStr[i]) <= 255){
-                        tokenBuffer[i+1] = atoi(parsedStr[i]);
+                    if (myAtoi(parsedStr[i]) <= 255){
+                        tokenBuffer[i+1] = myAtoi(parsedStr[i]);
                         tokenBuffer[i+2] = t_EOL;
                     }
                     else{
@@ -225,8 +264,8 @@ void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][
                 else if (tokenBuffer[0] == t_SET && tokenBuffer[1] == t_TIME){
                     if (i == 2){
                         
-                        if (atoi(parsedStr[i]) <= 12 && atoi(parsedStr[i]) > 0){
-                            month = atoi(parsedStr[i]);
+                        if (myAtoi(parsedStr[i]) <= 12 && myAtoi(parsedStr[i]) > 0){
+                            month = myAtoi(parsedStr[i]);
                             
                         }
 
@@ -238,8 +277,8 @@ void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][
                     }
                     else if (i == 3){
                         
-                        if (atoi(parsedStr[i]) <= 31 && atoi(parsedStr[i]) > 0){
-                            day = atoi(parsedStr[i]);
+                        if (myAtoi(parsedStr[i]) <= 31 && myAtoi(parsedStr[i]) > 0){
+                            day = myAtoi(parsedStr[i]);
                             
                         }
                         else{
@@ -249,8 +288,8 @@ void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][
                     }
                     else if (i == 4){
                         
-                        if (atoi(parsedStr[i]) <= 99 && atoi(parsedStr[i]) >= 0){
-                            year = atoi(parsedStr[i]);
+                        if (myAtoi(parsedStr[i]) <= 99 && myAtoi(parsedStr[i]) >= 0){
+                            year = myAtoi(parsedStr[i]);
                             
                         }
                         else{
@@ -260,8 +299,8 @@ void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][
                     }
                     else if (i == 5){
                         
-                        if (atoi(parsedStr[i]) <=23 && atoi(parsedStr[i]) >= 0){
-                            hour = atoi(parsedStr[i]);
+                        if (myAtoi(parsedStr[i]) <=23 && myAtoi(parsedStr[i]) >= 0){
+                            hour = myAtoi(parsedStr[i]);
                             
                         }
                         else{
@@ -271,8 +310,8 @@ void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][
                     }
                     else if (i == 6){
                         
-                        if (atoi(parsedStr[i]) < 60 && atoi(parsedStr[i]) >= 0){
-                            minute = atoi(parsedStr[i]);
+                        if (myAtoi(parsedStr[i]) < 60 && myAtoi(parsedStr[i]) >= 0){
+                            minute = myAtoi(parsedStr[i]);
                             
                         }
                         else{
@@ -282,8 +321,8 @@ void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][
                     }
                     else if (i == 7){
                         
-                        if (atoi(parsedStr[i]) < 60 && atoi(parsedStr[i]) >= 0){
-                            second = atoi(parsedStr[i]);
+                        if (myAtoi(parsedStr[i]) < 60 && myAtoi(parsedStr[i]) >= 0){
+                            second = myAtoi(parsedStr[i]);
                             
                         }
                         else{
@@ -551,17 +590,17 @@ void status_LEDS(){
 
 //prints the current temperature and humidity
 void current_TEMP(){
-    byte temperature = 0;
-    byte humidity = 0;
+    float temperature = 0;
+    float humidity = 0;
     int err = SimpleDHTErrSuccess;
-    if ((err = dht22.read(&temperature, &humidity, NULL)) != SimpleDHTErrSuccess) {
+    if ((err = dht22.read2(&temperature, &humidity, NULL)) != SimpleDHTErrSuccess) {
         Serial.print("Read DHT22 failed, err=");
         Serial.print(SimpleDHTErrCode(err));
         Serial.print(","); 
         Serial.println(SimpleDHTErrDuration(err));
     }
     Serial.print("Sample OK: ");
-    Serial.print((int)temperature); Serial.print(" *C, ");
+    Serial.print(temperature); Serial.print(" *C, ");
     Serial.print((int)humidity); Serial.println(" RH%");
 }
 
@@ -572,18 +611,21 @@ void five_SECOND_TEMP(){
     static long int timer = 0;
 
     if (timer<millis() && showTemp == true){
-        dht22.read(&currTemp, &currHumid, NULL);
-        Serial.print((int)currTemp); Serial.print(" *C, ");
-        Serial.print((int)currHumid); Serial.println(" RH%");
+        dht22.read2(&currTemp, &currHumid, NULL);
+        // if (float(currTemp) < 0){
+        //     currTemp = ( 32767 / (currTemp * 10) / 10);
+        // }
+        Serial.print((float)currTemp); Serial.print(" *C, ");
+        Serial.print((float)currHumid); Serial.println(" RH%");
         timer= millis()+5000;
     }
 }
 
 //writes time and temp data to EEPROM every 15 minutes
 void write_TO_EEPROM(){
-    static long int timer = 0;
-    if (timer<millis()){
-        dht22.read(&currTemp, &currHumid, NULL);
+    if ((Clock.read().Minute == 0 || Clock.read().Minute == 15
+     || Clock.read().Minute == 30 || Clock.read().Minute == 45) && Clock.read().Second == 0){
+        dht22.read2(&currTemp, &currHumid, NULL);
         TimeStamp curr = {
             int(currTemp),
             int(currHumid),
@@ -594,24 +636,34 @@ void write_TO_EEPROM(){
             Clock.read().Day
         };
         
-        EEPROM.put(eeAddress, curr);
+        EEPROM.put(eeAddress+1, curr);
         eeAddress += sizeof(curr);
-        timer=millis()+900000;
+        EEPROM.write(0, eeAddress);
+        delay(1100);
     }
+    
 }
 
 //prints all data in EEPROM
 void temp_HISTORY(){
-    for (int i = 0; i < eeAddress; i+= 7){
-        Serial.print("Temp: "); Serial.print( EEPROM[i] ); Serial.print(" *C "); 
-        Serial.print("Humidity: "); Serial.print( EEPROM[i+1] ); Serial.println(" RH%");
-        Serial.print("On: "); Serial.print(EEPROM[i+5]); Serial.print('/');
-        Serial.print(EEPROM[i+6]); Serial.print('/');
+    for (int i = 1; i < eeAddress; i+= 8){
+        short printTemp = EEPROM[i] | (EEPROM[i+1] << 8);
+        Serial.print("Temp: "); Serial.print( printTemp ); Serial.print(" *C "); 
+        Serial.print("Humidity: "); Serial.print( EEPROM[i+2] ); Serial.println(" RH%");
+        Serial.print("On: "); Serial.print(EEPROM[i+6]); Serial.print('/');
+        Serial.print(EEPROM[i+7]); Serial.print('/');
+        Serial.println(EEPROM[i+5]);
+        Serial.print("At: "); Serial.print(EEPROM[i+3]); Serial.print(':');
         Serial.println(EEPROM[i+4]);
-        Serial.print("At: "); Serial.print(EEPROM[i+2]); Serial.print(':');
-        Serial.println(EEPROM[i+3]);
         Serial.println();
     }
+}
+
+void clearEEPROM(){
+    for (int i = 0 ; i < EEPROM.length() ; i++) {
+        EEPROM.write(i, 0);
+    }
+    eeAddress = 0;
 }
 
 //prints the current time
@@ -642,13 +694,15 @@ void set_TIME()
 void temp_HIGH_LOW(){
     int high = 0;
     int low = 1000;
+    byte j = 0;
     for(byte i = 0; i < eeAddress/7; i++){
-        if(EEPROM[i] > high){
-            high = EEPROM[i];
+        if(EEPROM[j] > high){
+            high = EEPROM[j];
         }
-        if(EEPROM[i] < low){
-            low = EEPROM[i];
+        if(EEPROM[j] < low){
+            low = EEPROM[j];
         }
+        j += 7;
     }
     Serial.print("HIGHEST TEMP: "); Serial.print(high); Serial.println(" *C ");
     Serial.print("LOWEST TEMP: "); Serial.print(low); Serial.println(" *C ");
@@ -703,7 +757,18 @@ void RGB_BLINK(){
     }
 }
 
+void clearTokenBuffer(){
+    tokenBuffer[0] = 0;
+    tokenBuffer[1] = 0;
+    tokenBuffer[2] = 0;
+    tokenBuffer[3] = 0;
+    tokenBuffer[4] = 0;
+    tokenBuffer[5] = 0;
+    tokenBuffer[6] = 0;
+    tokenBuffer[7] = 0;
+    tokenBuffer[8] = 0;
 
+}
 
 //shows error
 void showError(){
@@ -712,13 +777,6 @@ void showError(){
 
 //main loop
 void loop(){
-    //first prompt
-    if(prompt){
-        introPrompt();
-        prompt = false;
-    }
-    // leds[0] = CRGB(50, 100, 150);
-    // FastLED.show();
     five_SECOND_TEMP();
     write_TO_EEPROM();
     RGB_BLINK();
@@ -1016,7 +1074,8 @@ void loop(){
                                 switch(tokenBuffer[2]){
                                     case t_EOL:
                                         showTemp = true;
-                                        five_SECOND_TEMP();
+                                        // current_TEMP();
+                                        // five_SECOND_TEMP();
                                     break;
                                     default:
                                         showError();
@@ -1114,6 +1173,9 @@ void loop(){
                                 switch (tokenBuffer[2]){
                                     case t_EOL:
                                         temp_HISTORY();
+                                        if (EEPROM[0] == 0){
+                                            Serial.println("*NO DATA YET");
+                                        }
                                     break;
                                     default:
                                         showError();
@@ -1133,8 +1195,8 @@ void loop(){
                                         }
                                     break;
                                         default:
-                                    showError();
-                            break;
+                                            showError();
+                                        break;
 
                                 }
                             break;
@@ -1142,13 +1204,31 @@ void loop(){
                                 showError();
                             break; 
                         }
+                    break;
+                    case t_CLEAR:
+                        switch (tokenBuffer[1]){
+                            case t_HISTORY:
+                                switch (tokenBuffer[2]){
+                                    case t_EOL:
+                                        clearEEPROM();
+                                        
+                                    break;
+                                    default:
+                                        showError();
+                                    break;
+                                }
+                            break;
+                            default:
+                                showError();
+                            break;
+                        }
                     break;                    
             }
         }
         
         msStart = currentMillis; //for looping
         clearParsedString(parsedString); //clearing the parsed string for next input
-        memset(tokenBuffer, 0, sizeof(tokenBuffer)); // clearing the token buffer
+        clearTokenBuffer(); // clearing the token buffer
 
     }
 }

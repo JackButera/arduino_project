@@ -20,6 +20,7 @@
 #define t_HISTORY 20
 #define t_HIGH 21
 #define t_LOW 22
+#define t_CLEAR 23
 #define t_EOL 255
 
 

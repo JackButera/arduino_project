@@ -52,4 +52,9 @@ build-uno/Main.cpp.o: Main.cpp \
  /home/jack/Arduino/libraries/FastLED/src/fastspi_bitbang.h \
  /home/jack/Arduino/libraries/FastLED/src/chipsets.h \
  /home/jack/arduino/arduino-1.8.19/hardware/arduino/avr/libraries/EEPROM/src/EEPROM.h \
- led_controller.h
+ /home/jack/Arduino/libraries/EtherCard/src/EtherCard.h \
+ /home/jack/Arduino/libraries/EtherCard/src/bufferfiller.h \
+ /home/jack/Arduino/libraries/EtherCard/src/EtherCard.h \
+ /home/jack/Arduino/libraries/EtherCard/src/enc28j60.h \
+ /home/jack/Arduino/libraries/EtherCard/src/net.h \
+ /home/jack/Arduino/libraries/EtherCard/src/stash.h led_controller.h
