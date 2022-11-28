@@ -172,12 +172,16 @@ void setup(){
     // Check for Ethernet hardware present
     if (Ethernet.hardwareStatus() == EthernetNoHardware) {
         Serial.println("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
+        leds[1] = GRGB::Blue;
+        FastLED.show();
         while (true) {
             delay(1); // do nothing, no point running without Ethernet hardware
         }
     }
     if (Ethernet.linkStatus() == LinkOFF) {
         Serial.println("Ethernet cable is not connected.");
+        leds[1] = GRGB::Blue;
+        FastLED.show();
     }
 
     // start UDP
@@ -845,6 +849,7 @@ void alarmPacket(){
         leds[2].green = 255;
         leds[2].red = 0;
         leds[2].blue = 255;
+        FastLED.show();
     }
     else if (celsiusToFarenheit(currTemp) > 60 && celsiusToFarenheit(currTemp) <= 70 && alarm != 6){
         alarm = 6;
@@ -871,6 +876,7 @@ void alarmPacket(){
         leds[2].green = 255;
         leds[2].red = 75;
         leds[2].blue = 0;
+        FastLED.show();
 
     }
     else if (celsiusToFarenheit(currTemp) > 90 && alarm != 9){
