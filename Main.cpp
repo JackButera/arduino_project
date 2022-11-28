@@ -169,20 +169,7 @@ void setup(){
     ; // wait for serial port to connect. Needed for native USB port only
     }
 
-    // Check for Ethernet hardware present
-    if (Ethernet.hardwareStatus() == EthernetNoHardware) {
-        Serial.println("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
-        leds[1] = GRGB::Blue;
-        FastLED.show();
-        while (true) {
-            delay(1); // do nothing, no point running without Ethernet hardware
-        }
-    }
-    if (Ethernet.linkStatus() == LinkOFF) {
-        Serial.println("Ethernet cable is not connected.");
-        leds[1] = GRGB::Blue;
-        FastLED.show();
-    }
+    
 
     // start UDP
     Udp.begin(localPort);
@@ -239,6 +226,16 @@ long myAtol(char *str){
     return res;
 }
 
+int myStrlen(char *str){
+    int count = 0;
+    while (str[count] != '\0'){
+        count++;
+    }
+    return count;
+}
+
+
+
 
 //takes parsed string and definitions array and fills the token buffer based on the input
 void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][4]){
@@ -248,7 +245,7 @@ void fillTokenBuffer(char parsedStr[MAX_ARGS][MAX_BUF], char defsArr[def_COUNT][
         for (byte j = 0; j < def_COUNT; j++){
             if ((parsedStr[i][0] == defsArr[j][0]) //for commands that don't contain numbers
             && (parsedStr[i][1] == defsArr[j][1])
-            && (strlen(parsedStr[i]) == defsArr[j][2])){
+            && (myStrlen(parsedStr[i]) == defsArr[j][2])){
                 tokenBuffer[i] = defsArr[j][3];
                 tokenBuffer[i+1] = t_EOL;               
             }
@@ -630,7 +627,10 @@ void status_LEDS(){
     
 }
 
-
+//returns the temp in farenheit
+int celsiusToFarenheit(float cel){
+    return (cel*1.8)+32;
+}
 
 
 bool showTemp = false; //bool to determine whether or not to loop five second temp
@@ -644,6 +644,7 @@ void five_SECOND_TEMP(){
         //     currTemp = ( 32767 / (currTemp * 10) / 10);
         // }
         Serial.print((float)currTemp); Serial.print(" *C, ");
+        Serial.print(celsiusToFarenheit(currTemp)); Serial.print(" *F, ");
         Serial.print((float)currHumid); Serial.println(" RH%");
         timer= millis()+5000;
     }
@@ -652,7 +653,6 @@ void five_SECOND_TEMP(){
 //assigns the current temperature and humidity
 void current_TEMP(){
     static long int timer = 0;
-
     if (timer<millis()){
         dht22.read2(&currTemp, &currHumid, NULL);
         timer= millis()+5000;
@@ -829,9 +829,7 @@ void myStrcpy(char og[30], char str[30]){
     og[i] = '\0';
 }
 
-int celsiusToFarenheit(float cel){
-    return (cel*1.8)+32;
-}
+
 
 byte alarm = 0;
 IPAddress ipRemote(192,168,1,180);
@@ -907,6 +905,18 @@ void receivePackets(){
     }
 }
 
+//my strncat function
+void myStrncat(char dest[], char src[], byte length)
+{
+    byte i = 0;
+    byte len = myStrlen(dest);
+    for(i=0; i < length; i++)
+    {
+        dest[len+i] = src[i];
+        dest[len+i+1] = 0;
+    }
+}
+
 //main loop
 void loop(){
     current_TEMP();
@@ -924,19 +934,32 @@ void loop(){
         receivedPacket = false;
     }
     alarmPacket();
-    
+    // Check for Ethernet hardware present
+    if (Ethernet.hardwareStatus() == EthernetNoHardware || Ethernet.linkStatus() == LinkOFF) {
+        Serial.println("Ethernet Not Connected :(");
+        leds[1] = CRGB::Black;
+        FastLED.show();
+        while (Ethernet.hardwareStatus() == EthernetNoHardware || Ethernet.linkStatus() == LinkOFF){
+            ;//cant continue until reconnected
+        } 
+    }
+    else{
+        leds[1] = CRGB::Blue;
+        FastLED.show();
+        
+    }
 
 
     //takes in user input and adds it to the buffer
     while (Serial.available()){
         c = toupper(Serial.read());
-        strncat(buffer, &c, 1);
+        myStrncat(buffer, &c, 1);
         if (c == 127){ //Handle backspace on terminal
             Serial.print("\033[D");
             Serial.print(" ");
             Serial.print("\033[D");
             if (buffer != NULL){
-                const unsigned int length = strlen(buffer);
+                const unsigned int length = myStrlen(buffer);
                 if ((length > 0) && (buffer[length-1] == 127)) {
                     buffer[length-1] = '\0';
                     buffer[length-2] = '\0';
@@ -953,7 +976,7 @@ void loop(){
         Serial.println();
         
         //parses the string the user entered
-        for(int i = 0; i < strlen(buffer); i++){
+        for(int i = 0; i < myStrlen(buffer); i++){
             if(!isspace(buffer[i])){
                 parsedString[wordNum][charNum] = buffer[i];
                 charNum++; 
@@ -1278,6 +1301,7 @@ void loop(){
                             case t_WORD:
                                 switch (tokenBuffer[5]){
                                     case t_EOL:
+                                        RGB_goBlink = false;
                                         change_RGB();
                                     break;
                                     default:
