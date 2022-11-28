@@ -4,13 +4,26 @@
 #include <Wire.h>
 #include <FastLED.h>
 #include <EEPROM.h>
-#include <EtherCard.h>
+#include <Ethernet.h>
+#include <EthernetUdp.h>
+#include <SPI.h>
+#include<string.h>
 
 #include "led_controller.h"
 
 #define def_COUNT 24 //number of defines
 
 #define NUM_LEDS 1 //number of leds
+
+byte mac[] = {
+  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
+};
+IPAddress ip(192, 168, 1, 177);
+unsigned int localPort = 8888;      // local port to listen on
+char packetBuffer[UDP_TX_PACKET_MAX_SIZE];  // buffer to hold incoming packet,
+char ReplyBuffer[] = "acknowledged";        // a string to send back
+EthernetUDP Udp;
+
 
 int eeAddress = EEPROM[0]; //element tracker for EEPROM
 
@@ -137,6 +150,7 @@ void introPrompt(){
 //setup function
 void setup(){  
     led_setup();
+    Ethernet.begin(mac, ip);
     Serial.begin(9600);
     Clock.begin();
     FastLED.addLeds<WS2812B,7>(leds, NUM_LEDS);
@@ -144,6 +158,23 @@ void setup(){
     leds[0] = CRGB::Black;
     FastLED.show();
     introPrompt();
+    while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB port only
+    }
+
+    // Check for Ethernet hardware present
+    if (Ethernet.hardwareStatus() == EthernetNoHardware) {
+        Serial.println("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
+        while (true) {
+            delay(1); // do nothing, no point running without Ethernet hardware
+        }
+    }
+    if (Ethernet.linkStatus() == LinkOFF) {
+        Serial.println("Ethernet cable is not connected.");
+    }
+
+    // start UDP
+    Udp.begin(localPort);
 }
 
 
@@ -588,21 +619,7 @@ void status_LEDS(){
     
 }
 
-//prints the current temperature and humidity
-void current_TEMP(){
-    float temperature = 0;
-    float humidity = 0;
-    int err = SimpleDHTErrSuccess;
-    if ((err = dht22.read2(&temperature, &humidity, NULL)) != SimpleDHTErrSuccess) {
-        Serial.print("Read DHT22 failed, err=");
-        Serial.print(SimpleDHTErrCode(err));
-        Serial.print(","); 
-        Serial.println(SimpleDHTErrDuration(err));
-    }
-    Serial.print("Sample OK: ");
-    Serial.print(temperature); Serial.print(" *C, ");
-    Serial.print((int)humidity); Serial.println(" RH%");
-}
+
 
 
 bool showTemp = false; //bool to determine whether or not to loop five second temp
@@ -620,6 +637,18 @@ void five_SECOND_TEMP(){
         timer= millis()+5000;
     }
 }
+
+//assigns the current temperature and humidity
+void current_TEMP(){
+    static long int timer = 0;
+
+    if (timer<millis()){
+        dht22.read2(&currTemp, &currHumid, NULL);
+        timer= millis()+5000;
+    }
+    
+}
+
 
 //writes time and temp data to EEPROM every 15 minutes
 void write_TO_EEPROM(){
@@ -775,8 +804,81 @@ void showError(){
     Serial.println(F("*INVALID COMMAND"));
 }
 
+void clearPacketBuffer(char clearing[UDP_TX_PACKET_MAX_SIZE]){
+    for (int i = 0; i < UDP_TX_PACKET_MAX_SIZE; i++){
+        clearing[i] = '\0';
+    }
+}
+
+void myStrcpy(char og[30], char str[30]){
+    byte i = 0;
+    for (i = 0; str[i] != '\0'; i++){
+        og[i] = str[i];
+    }
+    og[i] = '\0';
+}
+
+int celsiusToFarenheit(float cel){
+    return (cel*1.8)+32;
+}
+
+byte alarm = 0;
+IPAddress ipRemote(192,168,1,180);
+unsigned int remotePort = 55685;
+void alarmPacket(){
+    if (celsiusToFarenheit(currTemp) <= 60 && alarm != 5){
+        alarm = 5;
+        Udp.beginPacket(ipRemote, remotePort);
+        Udp.write("Major Under");
+        Udp.endPacket();
+    }
+    else if (celsiusToFarenheit(currTemp) > 60 && celsiusToFarenheit(currTemp) <= 70 && alarm != 6){
+        alarm = 6;
+        Udp.beginPacket(ipRemote, remotePort);
+        Udp.write("Minor Under");
+        Udp.endPacket();
+    }
+    else if (celsiusToFarenheit(currTemp) > 70 && celsiusToFarenheit(currTemp) <= 80 && alarm != 7){
+        alarm = 7;
+        Udp.beginPacket(ipRemote, remotePort);
+        Udp.write("Comfortable");
+        Udp.endPacket();
+    }
+    else if (celsiusToFarenheit(currTemp) > 80 && celsiusToFarenheit(currTemp) <= 90 && alarm != 8){
+        alarm = 8;
+        Udp.beginPacket(ipRemote, remotePort);
+        Udp.write("Minor Over");
+        Udp.endPacket();
+    }
+    else if (celsiusToFarenheit(currTemp) > 90 && alarm != 9){
+        alarm = 9;
+        Udp.beginPacket(ipRemote, remotePort);
+        Udp.write("Major Over");
+        Udp.endPacket();
+    }
+}
+
+bool receivedPacket = false;
+void receivePackets(){
+    int packetSize = Udp.parsePacket();
+    if (packetSize) {
+        receivedPacket = true;
+        IPAddress remote = Udp.remoteIP();
+        // read the packet into packetBufffer
+        Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
+        Serial.print(packetBuffer);
+        Serial.print(F(" *PACKET RECEIVED"));
+        myStrcpy(buffer, packetBuffer);
+        // send a reply to the IP address and port that sent us the packet we received
+        Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+        Udp.write(ReplyBuffer);
+        Udp.endPacket();
+    }
+}
+
 //main loop
 void loop(){
+    current_TEMP();
     five_SECOND_TEMP();
     write_TO_EEPROM();
     RGB_BLINK();
@@ -785,6 +887,14 @@ void loop(){
     led_ALTERNATE(); //start LED ALTERNATEping colors
     char c = '\0'; //temp value for each character the user enters
     currentMillis = millis(); //sets current time to how much time has passed in the program so far
+    receivePackets();
+    if (receivedPacket){
+        c = 13;
+        receivedPacket = false;
+    }
+    alarmPacket();
+    
+
 
     //takes in user input and adds it to the buffer
     while (Serial.available()){
@@ -809,7 +919,7 @@ void loop(){
 
     //if 'enter' is clicked, checks what user typed and applies to arduino
     if (c == 13){
-        Serial.print("\n");
+        Serial.println();
         
         //parses the string the user entered
         for(int i = 0; i < strlen(buffer); i++){
@@ -1225,7 +1335,7 @@ void loop(){
                     break;                    
             }
         }
-        
+        clearPacketBuffer(packetBuffer);
         msStart = currentMillis; //for looping
         clearParsedString(parsedString); //clearing the parsed string for next input
         clearTokenBuffer(); // clearing the token buffer

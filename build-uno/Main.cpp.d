@@ -52,9 +52,13 @@ build-uno/Main.cpp.o: Main.cpp \
  /home/jack/Arduino/libraries/FastLED/src/fastspi_bitbang.h \
  /home/jack/Arduino/libraries/FastLED/src/chipsets.h \
  /home/jack/arduino/arduino-1.8.19/hardware/arduino/avr/libraries/EEPROM/src/EEPROM.h \
- /home/jack/Arduino/libraries/EtherCard/src/EtherCard.h \
- /home/jack/Arduino/libraries/EtherCard/src/bufferfiller.h \
- /home/jack/Arduino/libraries/EtherCard/src/EtherCard.h \
- /home/jack/Arduino/libraries/EtherCard/src/enc28j60.h \
- /home/jack/Arduino/libraries/EtherCard/src/net.h \
- /home/jack/Arduino/libraries/EtherCard/src/stash.h led_controller.h
+ /home/jack/arduino/arduino-1.8.19/libraries/Ethernet/src/Ethernet.h \
+ /home/jack/arduino/arduino-1.8.19/hardware/arduino/avr/cores/arduino/Client.h \
+ /home/jack/arduino/arduino-1.8.19/hardware/arduino/avr/cores/arduino/IPAddress.h \
+ /home/jack/arduino/arduino-1.8.19/hardware/arduino/avr/cores/arduino/Server.h \
+ /home/jack/arduino/arduino-1.8.19/hardware/arduino/avr/cores/arduino/Udp.h \
+ /home/jack/arduino/arduino-1.8.19/hardware/arduino/avr/cores/arduino/IPAddress.h \
+ /home/jack/arduino/arduino-1.8.19/libraries/Ethernet/src/EthernetUdp.h \
+ /home/jack/arduino/arduino-1.8.19/libraries/Ethernet/src/Ethernet.h \
+ /home/jack/arduino/arduino-1.8.19/hardware/arduino/avr/libraries/SPI/src/SPI.h \
+ led_controller.h
