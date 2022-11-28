@@ -117,7 +117,7 @@ unsigned int combinedVal = 500; //hiByte and loByte together (hiByte + loByte)
 
 long addedNum = 0; //final value for add command
 
-int pinDHT22 = 2; //pin for DHT
+byte pinDHT22 = 2; //pin for DHT
 SimpleDHT22 dht22(pinDHT22); //initializing dht
 DS3231_Simple Clock; //initilizing clock
 DateTime MyDateAndTime; //initializing MyDateAndTime for changing clock
@@ -192,7 +192,7 @@ int myAtoi(char *str){
 
     // Iterate through all characters of input string and
     // update result
-    for (int i = 0; str[i] != '\0'; ++i) {
+    for (byte i = 0; str[i] != '\0'; ++i) {
         if (str[i]> '9' || str[i]<'0')
             return -1;
         res = res*10 + str[i] - '0';
@@ -207,7 +207,7 @@ long myAtol(char *str){
     bool negative = false;
     // Iterate through all characters of input string and
     // update result
-    for (int i = 0; str[i] != '\0'; ++i) {
+    for (byte i = 0; str[i] != '\0'; ++i) {
         if (str[i] == '-'){
             negative = true;
             i++;
@@ -226,8 +226,8 @@ long myAtol(char *str){
     return res;
 }
 
-int myStrlen(char *str){
-    int count = 0;
+byte myStrlen(char *str){
+    byte count = 0;
     while (str[count] != '\0'){
         count++;
     }
@@ -392,7 +392,7 @@ void ADD(){
     hi = tokenBuffer[2] | (tokenBuffer[1] << 8);
     lo = tokenBuffer[4] | (tokenBuffer[3] << 8);
     long printvalue = hi + lo;
-    Serial.print("EQUALS: ");
+    Serial.print(F("EQUALS: "));
     Serial.println(printvalue);
 }
 
@@ -598,37 +598,37 @@ void status_LEDS(){
         }
     }
     else if(led_goALTERNATE){
-        Serial.println("ALTERNATING");
+        Serial.println(F("ALTERNATING"));
     }
 
     if (RGB_goBlink){
-        Serial.print("> RGB BLINKING (");
+        Serial.print(F("> RGB BLINKING ("));
         Serial.print(userGREEN); Serial.print(' ');
         Serial.print(userRED); Serial.print(' ');
         Serial.print(userBLUE);
         Serial.println(')');
     }
     else if(!RGB_goBlink){
-        Serial.print("> RGB ");
+        Serial.print(F("> RGB "));
         if (RGB_status){
-            Serial.print("ON (");
+            Serial.print(F("ON ("));
             Serial.print(userGREEN); Serial.print(", ");
             Serial.print(userRED); Serial.print(", ");
             Serial.print(userBLUE);
             Serial.println(')');
         }
         else{
-            Serial.println("OFF");
+            Serial.println(F("OFF"));
         }
     }
     
-    Serial.print("> BLINK INTERVAL SET TO: ");
+    Serial.print(F("> BLINK INTERVAL SET TO: "));
     Serial.println(interval);
     
 }
 
 //returns the temp in farenheit
-int celsiusToFarenheit(float cel){
+short celsiusToFarenheit(float cel){
     return (cel*1.8)+32;
 }
 
@@ -643,9 +643,9 @@ void five_SECOND_TEMP(){
         // if (float(currTemp) < 0){
         //     currTemp = ( 32767 / (currTemp * 10) / 10);
         // }
-        Serial.print((float)currTemp); Serial.print(" *C, ");
-        Serial.print(celsiusToFarenheit(currTemp)); Serial.print(" *F, ");
-        Serial.print((float)currHumid); Serial.println(" RH%");
+        Serial.print((float)currTemp); Serial.print(F(" *C, "));
+        Serial.print(celsiusToFarenheit(currTemp)); Serial.print(F(" *F, "));
+        Serial.print((float)currHumid); Serial.println(F(" RH%"));
         timer= millis()+5000;
     }
 }
@@ -688,17 +688,18 @@ void write_TO_EEPROM(){
 void temp_HISTORY(){
     for (int i = 1; i < eeAddress; i+= 8){
         short printTemp = EEPROM[i] | (EEPROM[i+1] << 8);
-        Serial.print("Temp: "); Serial.print( printTemp ); Serial.print(" *C "); 
-        Serial.print("Humidity: "); Serial.print( EEPROM[i+2] ); Serial.println(" RH%");
-        Serial.print("On: "); Serial.print(EEPROM[i+6]); Serial.print('/');
+        Serial.print(F("Temp: ")); Serial.print( printTemp ); Serial.print(F(" *C ")); 
+        Serial.print(F("Humidity: ")); Serial.print( EEPROM[i+2] ); Serial.println(F(" RH%"));
+        Serial.print(F("On: ")); Serial.print(EEPROM[i+6]); Serial.print('/');
         Serial.print(EEPROM[i+7]); Serial.print('/');
         Serial.println(EEPROM[i+5]);
-        Serial.print("At: "); Serial.print(EEPROM[i+3]); Serial.print(':');
+        Serial.print(F("At: ")); Serial.print(EEPROM[i+3]); Serial.print(':');
         Serial.println(EEPROM[i+4]);
         Serial.println();
     }
 }
 
+//clears all data in EEPROM
 void clearEEPROM(){
     for (int i = 0 ; i < EEPROM.length() ; i++) {
         EEPROM.write(i, 0);
@@ -744,8 +745,8 @@ void temp_HIGH_LOW(){
         }
         j += 7;
     }
-    Serial.print("HIGHEST TEMP: "); Serial.print(high); Serial.println(" *C ");
-    Serial.print("LOWEST TEMP: "); Serial.print(low); Serial.println(" *C ");
+    Serial.print(F("HIGHEST TEMP: ")); Serial.print(high); Serial.println(F(" *C "));
+    Serial.print(F("LOWEST TEMP: ")); Serial.print(low); Serial.println(F(" *C "));
 
 }
 
@@ -816,7 +817,7 @@ void showError(){
 }
 
 void clearPacketBuffer(char clearing[UDP_TX_PACKET_MAX_SIZE]){
-    for (int i = 0; i < UDP_TX_PACKET_MAX_SIZE; i++){
+    for (byte i = 0; i < UDP_TX_PACKET_MAX_SIZE; i++){
         clearing[i] = '\0';
     }
 }
@@ -892,7 +893,6 @@ void receivePackets(){
     int packetSize = Udp.parsePacket();
     if (packetSize) {
         receivedPacket = true;
-        IPAddress remote = Udp.remoteIP();
         // read the packet into packetBufffer
         Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
         Serial.print(packetBuffer);
@@ -936,7 +936,7 @@ void loop(){
     alarmPacket();
     // Check for Ethernet hardware present
     if (Ethernet.hardwareStatus() == EthernetNoHardware || Ethernet.linkStatus() == LinkOFF) {
-        Serial.println("Ethernet Not Connected :(");
+        Serial.println(F("Ethernet Not Connected :("));
         leds[1] = CRGB::Black;
         FastLED.show();
         while (Ethernet.hardwareStatus() == EthernetNoHardware || Ethernet.linkStatus() == LinkOFF){
@@ -959,7 +959,7 @@ void loop(){
             Serial.print(" ");
             Serial.print("\033[D");
             if (buffer != NULL){
-                const unsigned int length = myStrlen(buffer);
+                byte length = myStrlen(buffer);
                 if ((length > 0) && (buffer[length-1] == 127)) {
                     buffer[length-1] = '\0';
                     buffer[length-2] = '\0';
@@ -976,7 +976,7 @@ void loop(){
         Serial.println();
         
         //parses the string the user entered
-        for(int i = 0; i < myStrlen(buffer); i++){
+        for(byte i = 0; i < myStrlen(buffer); i++){
             if(!isspace(buffer[i])){
                 parsedString[wordNum][charNum] = buffer[i];
                 charNum++; 
@@ -1238,8 +1238,6 @@ void loop(){
                                 switch(tokenBuffer[2]){
                                     case t_EOL:
                                         showTemp = true;
-                                        // current_TEMP();
-                                        // five_SECOND_TEMP();
                                     break;
                                     default:
                                         showError();
@@ -1339,7 +1337,7 @@ void loop(){
                                     case t_EOL:
                                         temp_HISTORY();
                                         if (EEPROM[0] == 0){
-                                            Serial.println("*NO DATA YET");
+                                            Serial.println(F("*NO DATA YET"));
                                         }
                                     break;
                                     default:
