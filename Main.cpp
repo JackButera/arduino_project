@@ -7,13 +7,13 @@
 #include <Ethernet.h>
 #include <EthernetUdp.h>
 #include <SPI.h>
-#include<string.h>
+//#include<string.h>
 
 #include "led_controller.h"
 
 #define def_COUNT 24 //number of defines
 
-#define NUM_LEDS 1 //number of leds
+#define NUM_LEDS 4 //number of leds
 
 byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
@@ -154,8 +154,15 @@ void setup(){
     Serial.begin(9600);
     Clock.begin();
     FastLED.addLeds<WS2812B,7>(leds, NUM_LEDS);
+    FastLED.addLeds<WS2812B,7>(leds, NUM_LEDS);
+    FastLED.addLeds<WS2812B,7>(leds, NUM_LEDS);
+    FastLED.addLeds<WS2812B,7>(leds, NUM_LEDS);
     FastLED.setBrightness(RGB_brightness);
     leds[0] = CRGB::Black;
+    leds[1] = CRGB::Black;
+    leds[2] = CRGB::Black;
+    leds[3] = CRGB::Green;
+
     FastLED.show();
     introPrompt();
     while (!Serial) {
@@ -824,37 +831,55 @@ int celsiusToFarenheit(float cel){
 
 byte alarm = 0;
 IPAddress ipRemote(192,168,1,180);
-unsigned int remotePort = 55685;
+unsigned int remotePort = 55642;
+
+
+
 void alarmPacket(){
+    
     if (celsiusToFarenheit(currTemp) <= 60 && alarm != 5){
         alarm = 5;
         Udp.beginPacket(ipRemote, remotePort);
         Udp.write("Major Under");
         Udp.endPacket();
+        leds[2].green = 255;
+        leds[2].red = 0;
+        leds[2].blue = 255;
     }
     else if (celsiusToFarenheit(currTemp) > 60 && celsiusToFarenheit(currTemp) <= 70 && alarm != 6){
         alarm = 6;
         Udp.beginPacket(ipRemote, remotePort);
         Udp.write("Minor Under");
         Udp.endPacket();
+        leds[2] = CRGB::Blue;
+        FastLED.show();
+
     }
     else if (celsiusToFarenheit(currTemp) > 70 && celsiusToFarenheit(currTemp) <= 80 && alarm != 7){
         alarm = 7;
         Udp.beginPacket(ipRemote, remotePort);
         Udp.write("Comfortable");
         Udp.endPacket();
+        leds[2] = CRGB::Red; //actually green
+        FastLED.show();
     }
     else if (celsiusToFarenheit(currTemp) > 80 && celsiusToFarenheit(currTemp) <= 90 && alarm != 8){
         alarm = 8;
         Udp.beginPacket(ipRemote, remotePort);
         Udp.write("Minor Over");
         Udp.endPacket();
+        leds[2].green = 255;
+        leds[2].red = 75;
+        leds[2].blue = 0;
+
     }
     else if (celsiusToFarenheit(currTemp) > 90 && alarm != 9){
         alarm = 9;
         Udp.beginPacket(ipRemote, remotePort);
         Udp.write("Major Over");
         Udp.endPacket();
+        leds[2] = CRGB::Green; //actually red
+        FastLED.show();
     }
 }
 
