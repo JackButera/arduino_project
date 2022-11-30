@@ -21,7 +21,6 @@ byte mac[] = {
 IPAddress ip(192, 168, 1, 177);
 unsigned int localPort = 8888;      // local port to listen on
 char packetBuffer[UDP_TX_PACKET_MAX_SIZE];  // buffer to hold incoming packet,
-char ReplyBuffer[] = "acknowledged";        // a string to send back
 EthernetUDP Udp;
 
 
@@ -46,13 +45,14 @@ struct TimeStamp {
 
 float currTemp; //holds current temperature reading
 float currHumid; //holds current humidity reading
+bool showTemp = false; //bool to determine whether or not to loop five second temp
 
 
 
 #define MAX_ARGS 9 //max arguments for token buffer
 #define MAX_BUF 30 // max length of string buffer
 
-static const uint8_t version[3] = {1,0,1}; //program version
+static const uint8_t version[3] = {1,3,0}; //program version
 
 unsigned long userBlinkLong; //number the user sets blink to
 
@@ -130,6 +130,14 @@ byte hour = 0;
 byte minute = 0;
 byte second = 0;
 
+//UDP packet alarm info
+byte alarm = 0;
+IPAddress ipRemote(192,168,1,180);
+unsigned int remotePort = 46065;
+bool receivedPacket = false;
+
+byte ledBlinkRed = 0b01110111; //red led blinking byte
+byte ledBlinkGreen = 0b10111011; //green led blinking byte
 
 //checks whether or not a string contains only numbers
 bool isValidNumber(char str[5]){
@@ -187,26 +195,25 @@ void clearParsedString(char arr[MAX_ARGS][MAX_BUF]){
   return;
 }
 
+//my atoi function
 int myAtoi(char *str){
-    int res = 0; // Initialize result
+    int res = 0; 
 
-    // Iterate through all characters of input string and
-    // update result
     for (byte i = 0; str[i] != '\0'; ++i) {
         if (str[i]> '9' || str[i]<'0')
             return -1;
         res = res*10 + str[i] - '0';
     }
 
-    // return result.
     return res;
 }
 
+
+//my atol function
 long myAtol(char *str){
-    long res = 0; // Initialize result
+    long res = 0; 
     bool negative = false;
-    // Iterate through all characters of input string and
-    // update result
+
     for (byte i = 0; str[i] != '\0'; ++i) {
         if (str[i] == '-'){
             negative = true;
@@ -222,10 +229,10 @@ long myAtol(char *str){
         res = (-1)*res;
     }
 
-    // return result.
     return res;
 }
 
+//return string length
 byte myStrlen(char *str){
     byte count = 0;
     while (str[count] != '\0'){
@@ -394,6 +401,11 @@ void ADD(){
     long printvalue = hi + lo;
     Serial.print(F("EQUALS: "));
     Serial.println(printvalue);
+    Udp.beginPacket(ipRemote, remotePort);
+    Udp.print(F("EQUALS: "));
+    Udp.print(printvalue);
+    Udp.endPacket();
+
 }
 
 //turns D13 on
@@ -470,8 +482,7 @@ void led_BLINK(){
 }
 
 
-byte ledBlinkRed = 0b01110111; //red led blinking byte
-byte ledBlinkGreen = 0b10111011; //green led blinking byte
+
 //blinks the led using byte rotation
 void led_BLINK2(){
     static long int ledTimer = 0;
@@ -554,51 +565,67 @@ void led_ALTERNATE(){
 
 //prints the status of both leds
 void status_LEDS(){
+    Udp.beginPacket(ipRemote, remotePort);
     Serial.print(F("> D13 "));
+    Udp.print(F("> D13 "));
+        
     if (d13_goBlink){
         Serial.println(F("BLINKING"));
+        Udp.print(F("BLINKING "));
     }
     else if(!d13_goBlink){
         if(d13_status){
             Serial.println(F("ON"));
+            Udp.print(F("ON "));
         }
         else{
             Serial.println(F("OFF"));
+            Udp.print(F("OFF "));
         }
     }
     Serial.print(F("> LED "));
+    Udp.print(F("> LED "));
     if (led_goBlink  && !led_goALTERNATE){
         Serial.print(F("BLINKING "));
+        Udp.print(F("BLINKING "));
         if(led_Previous == 'R'){
             Serial.println(F("RED"));
+            Udp.print(F("RED "));
         }
         else{
             Serial.println(F("GREEN"));
+            Udp.print(F("GREEN "));
         }
     }
     else if(!led_goBlink && !led_goALTERNATE){
         if(led_Previous == 'R'){
             if (led_status == 'R'){
                 Serial.println(F("RED"));
+                Udp.print(F("RED "));
             }
             else{
-                 Serial.println(F("OFF"));
+                Serial.println(F("OFF"));
+                Udp.print(F("OFF "));
             }
         }
         else if (led_Previous == 'G'){
             if (led_status == 'G'){
                 Serial.println(F("GREEN"));
+                Udp.print(F("GREEN "));
             }
             else{
-                 Serial.println(F("OFF"));
+                Serial.println(F("OFF"));
+                Udp.print(F("OFF "));
             }
         }
         else{
             Serial.println(F("OFF"));
+            Udp.print(F("OFF "));
         }
     }
     else if(led_goALTERNATE){
         Serial.println(F("ALTERNATING"));
+        Udp.print(F("ALTERNATING "));
     }
 
     if (RGB_goBlink){
@@ -607,24 +634,38 @@ void status_LEDS(){
         Serial.print(userRED); Serial.print(' ');
         Serial.print(userBLUE);
         Serial.println(')');
+        Udp.print(F("> RGB BLINKING ("));
+        Udp.print(userGREEN); Udp.print(' ');
+        Udp.print(userRED); Udp.print(' ');
+        Udp.print(userBLUE);
+        Udp.print(') ');
+
     }
     else if(!RGB_goBlink){
         Serial.print(F("> RGB "));
+        Udp.print(F("> RGB "));
         if (RGB_status){
             Serial.print(F("ON ("));
             Serial.print(userGREEN); Serial.print(", ");
             Serial.print(userRED); Serial.print(", ");
             Serial.print(userBLUE);
             Serial.println(')');
+            Udp.print("ON (");
+            Udp.print(userGREEN); Udp.print(", ");
+            Udp.print(userRED); Udp.print(", ");
+            Udp.print(userBLUE);
+            Udp.print(') ');
         }
         else{
             Serial.println(F("OFF"));
+            Udp.print("OFF ");
         }
     }
-    
     Serial.print(F("> BLINK INTERVAL SET TO: "));
     Serial.println(interval);
-    
+    Udp.print("> BLINK INTERVAL SET TO: ");
+    Udp.print(interval);
+    Udp.endPacket();
 }
 
 //returns the temp in farenheit
@@ -633,20 +674,24 @@ short celsiusToFarenheit(float cel){
 }
 
 
-bool showTemp = false; //bool to determine whether or not to loop five second temp
 //prints the temp and humidity every 5 seconds
 void five_SECOND_TEMP(){
     static long int timer = 0;
 
     if (timer<millis() && showTemp == true){
         dht22.read2(&currTemp, &currHumid, NULL);
-        // if (float(currTemp) < 0){
-        //     currTemp = ( 32767 / (currTemp * 10) / 10);
-        // }
         Serial.print((float)currTemp); Serial.print(F(" *C, "));
         Serial.print(celsiusToFarenheit(currTemp)); Serial.print(F(" *F, "));
         Serial.print((float)currHumid); Serial.println(F(" RH%"));
+        
+        Udp.beginPacket(ipRemote, remotePort);
+        Udp.print(float(currTemp)); Udp.print(F(" *C, "));
+        Udp.print(celsiusToFarenheit(currTemp)); Udp.print(F(" *F, "));
+        Udp.print((float)currHumid); Udp.print(F(" RH%"));
+        Udp.endPacket();
         timer= millis()+5000;
+        
+
     }
 }
 
@@ -696,6 +741,16 @@ void temp_HISTORY(){
         Serial.print(F("At: ")); Serial.print(EEPROM[i+3]); Serial.print(':');
         Serial.println(EEPROM[i+4]);
         Serial.println();
+
+        Udp.beginPacket(ipRemote, remotePort);
+        Udp.print(F("Temp: ")); Udp.print( printTemp ); Udp.print(F(" *C ")); 
+        Udp.print(F("Humidity: ")); Udp.print( EEPROM[i+2] ); Udp.print(F(" RH% "));
+        Udp.print(F("On: ")); Udp.print(EEPROM[i+6]); Udp.print('/');
+        Udp.print(EEPROM[i+7]); Udp.print('/');
+        Udp.print(EEPROM[i+5]);
+        Udp.print(F(" At: ")); Udp.print(EEPROM[i+3]); Udp.print(':');
+        Udp.print(EEPROM[i+4]);
+        Udp.endPacket();
     }
 }
 
@@ -716,7 +771,15 @@ void current_TIME(){
     Serial.print(MyDateAndTime.Hour); Serial.print(':');
     Serial.print(MyDateAndTime.Minute); Serial.print(':');
     Serial.print(MyDateAndTime.Second); Serial.println('\n');
-    
+
+    Udp.beginPacket(ipRemote, remotePort);
+    Udp.print(MyDateAndTime.Month); Udp.print('/');
+    Udp.print(MyDateAndTime.Day); Udp.print('/');
+    Udp.print(MyDateAndTime.Year); Udp.print(' ');
+    Udp.print(MyDateAndTime.Hour); Udp.print(':');
+    Udp.print(MyDateAndTime.Minute); Udp.print(':');
+    Udp.print(MyDateAndTime.Second);
+    Udp.endPacket();  
 }
 
 //set the current time
@@ -735,18 +798,23 @@ void set_TIME()
 void temp_HIGH_LOW(){
     int high = 0;
     int low = 1000;
-    byte j = 0;
-    for(byte i = 0; i < eeAddress/7; i++){
+    byte j = 1;
+    for(byte i = 1; i < eeAddress/8; i++){
         if(EEPROM[j] > high){
             high = EEPROM[j];
         }
         if(EEPROM[j] < low){
             low = EEPROM[j];
         }
-        j += 7;
+        j += 8;
     }
     Serial.print(F("HIGHEST TEMP: ")); Serial.print(high); Serial.println(F(" *C "));
     Serial.print(F("LOWEST TEMP: ")); Serial.print(low); Serial.println(F(" *C "));
+
+    Udp.beginPacket(ipRemote, remotePort);
+    Udp.print(F("HIGHEST TEMP: ")); Udp.print(high); Udp.print(F(" *C "));
+    Udp.print(F("LOWEST TEMP: ")); Udp.print(low); Udp.print(F(" *C "));
+    Udp.endPacket();  
 
 }
 
@@ -798,6 +866,7 @@ void RGB_BLINK(){
     }
 }
 
+//clears the token buffer
 void clearTokenBuffer(){
     tokenBuffer[0] = 0;
     tokenBuffer[1] = 0;
@@ -816,12 +885,14 @@ void showError(){
     Serial.println(F("*INVALID COMMAND"));
 }
 
+//clears the packetbuffer
 void clearPacketBuffer(char clearing[UDP_TX_PACKET_MAX_SIZE]){
     for (byte i = 0; i < UDP_TX_PACKET_MAX_SIZE; i++){
         clearing[i] = '\0';
     }
 }
 
+//my strcpy
 void myStrcpy(char og[30], char str[30]){
     byte i = 0;
     for (i = 0; str[i] != '\0'; i++){
@@ -832,18 +903,15 @@ void myStrcpy(char og[30], char str[30]){
 
 
 
-byte alarm = 0;
-IPAddress ipRemote(192,168,1,180);
-unsigned int remotePort = 46065;
 
 
-
+//send out alarm packet if temp threshold is crossed
 void alarmPacket(){
     
     if (celsiusToFarenheit(currTemp) <= 60 && alarm != 5){
         alarm = 5;
         Udp.beginPacket(ipRemote, remotePort);
-        Udp.write("Major Under");
+        Udp.print(F("Major Under"));
         Udp.endPacket();
         leds[2].green = 255;
         leds[2].red = 0;
@@ -853,7 +921,7 @@ void alarmPacket(){
     else if (celsiusToFarenheit(currTemp) > 60 && celsiusToFarenheit(currTemp) <= 70 && alarm != 6){
         alarm = 6;
         Udp.beginPacket(ipRemote, remotePort);
-        Udp.write("Minor Under");
+        Udp.print(F("Minor Under"));
         Udp.endPacket();
         leds[2] = CRGB::Blue;
         FastLED.show();
@@ -862,7 +930,7 @@ void alarmPacket(){
     else if (celsiusToFarenheit(currTemp) > 70 && celsiusToFarenheit(currTemp) <= 80 && alarm != 7){
         alarm = 7;
         Udp.beginPacket(ipRemote, remotePort);
-        Udp.write("Comfortable");
+        Udp.print(F("Comfortable"));
         Udp.endPacket();
         leds[2] = CRGB::Red; //actually green
         FastLED.show();
@@ -870,7 +938,7 @@ void alarmPacket(){
     else if (celsiusToFarenheit(currTemp) > 80 && celsiusToFarenheit(currTemp) <= 90 && alarm != 8){
         alarm = 8;
         Udp.beginPacket(ipRemote, remotePort);
-        Udp.write("Minor Over");
+        Udp.print(F("Minor Over"));
         Udp.endPacket();
         leds[2].green = 255;
         leds[2].red = 75;
@@ -881,14 +949,14 @@ void alarmPacket(){
     else if (celsiusToFarenheit(currTemp) > 90 && alarm != 9){
         alarm = 9;
         Udp.beginPacket(ipRemote, remotePort);
-        Udp.write("Major Over");
+        Udp.print(F("Major Over"));
         Udp.endPacket();
         leds[2] = CRGB::Green; //actually red
         FastLED.show();
     }
 }
 
-bool receivedPacket = false;
+//takes in udp packets and add them to the string buffer
 void receivePackets(){
     int packetSize = Udp.parsePacket();
     if (packetSize) {
@@ -899,9 +967,6 @@ void receivePackets(){
         Serial.print(F(" *PACKET RECEIVED"));
         myStrcpy(buffer, packetBuffer);
         // send a reply to the IP address and port that sent us the packet we received
-        Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-        Udp.write(ReplyBuffer);
-        Udp.endPacket();
     }
 }
 
@@ -936,12 +1001,8 @@ void loop(){
     
     // Check for Ethernet hardware present
     if (Ethernet.hardwareStatus() == EthernetNoHardware || Ethernet.linkStatus() == LinkOFF) {
-        //Serial.println(F("Ethernet Not Connected :("));
         leds[1] = CRGB::Green;
         FastLED.show();
-        // while (Ethernet.hardwareStatus() == EthernetNoHardware || Ethernet.linkStatus() == LinkOFF){
-        //     ;//cant continue until reconnected
-        // } 
     }
     else{
         leds[1] = CRGB::Red;
@@ -1160,6 +1221,33 @@ void loop(){
                                     Serial.println(F("->VERSION"));
                                     Serial.println(F("->HELP"));
                                     Serial.println();
+
+                                    Udp.beginPacket(ipRemote, remotePort);
+                                    Udp.print(F("The available commands are: "));
+                                    Udp.print(F("->D13 ON"));
+                                    Udp.print(F("->D13 OFF"));
+                                    Udp.print(F("->D13 BLINK"));
+                                    Udp.print(F("->LED GREEN"));
+                                    Udp.print(F("->LED RED"));
+                                    Udp.print(F("->LED OFF"));
+                                    Udp.print(F("->LED BLINK"));
+                                    Udp.print(F("->LED ALTERNATE"));
+                                    Udp.print(F("->BLINK <number>"));
+                                    Udp.print(F("->STATUS LEDS"));
+                                    Udp.print(F("->CURRENT TIME"));
+                                    Udp.print(F("->SET TIME <month> <day> <year> <hour> <minute> <second>"));
+                                    Udp.print(F("->CURRENT TEMP"));
+                                    Udp.print(F("->TEMP HISTORY"));
+                                    Udp.print(F("->TEMP HIGH LOW"));
+                                    Udp.print(F("->ADD <number1> <number2>"));
+                                    Udp.print(F("->RGB <red> <green> <blue>"));
+                                    Udp.print(F("->RGB ON"));
+                                    Udp.print(F("->RGB OFF"));
+                                    Udp.print(F("->RGB BLINK"));
+                                    Udp.print(F("->VERSION"));
+                                    Udp.print(F("->HELP"));
+                                    Udp.endPacket();
+
                                 break;
                                 default:
                                     showError();
@@ -1176,6 +1264,14 @@ void loop(){
                                     Serial.print(version[1]);
                                     Serial.print('.');
                                     Serial.println(version[2]);
+                                    Udp.beginPacket(ipRemote, remotePort);
+                                    Udp.print(F("Version: "));
+                                    Udp.print(version[0]);
+                                    Udp.print('.');
+                                    Udp.print(version[1]);
+                                    Udp.print('.');
+                                    Udp.print(version[2]);
+                                    Udp.endPacket();
                                 break;
                                 default:
                                     showError();
