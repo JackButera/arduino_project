@@ -161,7 +161,7 @@ void setup(){
     leds[0] = CRGB::Black;
     leds[1] = CRGB::Black;
     leds[2] = CRGB::Black;
-    leds[3] = CRGB::Green;
+    leds[3] = CRGB::Red;
 
     FastLED.show();
     introPrompt();
@@ -834,7 +834,7 @@ void myStrcpy(char og[30], char str[30]){
 
 byte alarm = 0;
 IPAddress ipRemote(192,168,1,180);
-unsigned int remotePort = 55642;
+unsigned int remotePort = 46065;
 
 
 
@@ -928,24 +928,26 @@ void loop(){
     led_ALTERNATE(); //start LED ALTERNATEping colors
     char c = '\0'; //temp value for each character the user enters
     currentMillis = millis(); //sets current time to how much time has passed in the program so far
-    receivePackets();
+    
     if (receivedPacket){
         c = 13;
         receivedPacket = false;
     }
-    alarmPacket();
+    
     // Check for Ethernet hardware present
     if (Ethernet.hardwareStatus() == EthernetNoHardware || Ethernet.linkStatus() == LinkOFF) {
-        Serial.println(F("Ethernet Not Connected :("));
-        leds[1] = CRGB::Black;
+        //Serial.println(F("Ethernet Not Connected :("));
+        leds[1] = CRGB::Green;
         FastLED.show();
-        while (Ethernet.hardwareStatus() == EthernetNoHardware || Ethernet.linkStatus() == LinkOFF){
-            ;//cant continue until reconnected
-        } 
+        // while (Ethernet.hardwareStatus() == EthernetNoHardware || Ethernet.linkStatus() == LinkOFF){
+        //     ;//cant continue until reconnected
+        // } 
     }
     else{
-        leds[1] = CRGB::Blue;
+        leds[1] = CRGB::Red;
         FastLED.show();
+        receivePackets();
+        alarmPacket();
         
     }
 
