@@ -24,9 +24,12 @@ unsigned int localPort = 8888;      // local port to listen on
 char packetBuffer[20];  // buffer to hold incoming packet,
 EthernetUDP Udp;
 
+IPAddress subnet(255,255,255,0);
+IPAddress gateway(192,168,1,1);
+
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-int eeAddress = EEPROM[0]; //element tracker for EEPROM
+int eeAddress = EEPROM[12]; //element tracker for EEPROM
 
 CRGB leds[NUM_LEDS]; //initilizing led
 unsigned int userRED = 255; //setting led red value
@@ -138,8 +141,18 @@ IPAddress ipRemote(192,168,1,180);
 unsigned int remotePort = 46065;
 bool receivedPacket = false;
 
+
+
 byte ledBlinkRed = 0b01110111; //red led blinking byte
 byte ledBlinkGreen = 0b10111011; //green led blinking byte
+
+
+//LCD vairables
+int menu;
+int command;
+int currentMenu = 5;
+char statsBuffer[100];
+
 
 //checks whether or not a string contains only numbers
 bool isValidNumber(char str[5]){
@@ -185,6 +198,20 @@ void setup(){
 	lcd.begin();
 	// Turn on the blacklight and print a message.
 	lcd.backlight();
+    menu = 5;
+    EEPROM.put(0,ip[0]);
+    EEPROM.put(1,ip[1]);
+    EEPROM.put(2,ip[2]);
+    EEPROM.put(3,ip[3]);
+    EEPROM.put(4,subnet[0]);
+    EEPROM.put(5,subnet[1]);
+    EEPROM.put(6,subnet[2]);
+    EEPROM.put(7,subnet[3]);
+    EEPROM.put(8,gateway[0]);
+    EEPROM.put(9,gateway[1]);
+    EEPROM.put(10,gateway[2]);
+    EEPROM.put(11,gateway[3]);
+    
 }
 
 
@@ -727,7 +754,7 @@ void write_TO_EEPROM(){
         
         EEPROM.put(eeAddress+1, curr);
         eeAddress += sizeof(curr);
-        EEPROM.write(0, eeAddress);
+        EEPROM.write(12, eeAddress);
         delay(1100);
     }
     
@@ -735,7 +762,7 @@ void write_TO_EEPROM(){
 
 //prints all data in EEPROM
 void temp_HISTORY(){
-    for (int i = 1; i < eeAddress; i+= 8){
+    for (int i = 13; i < eeAddress; i+= 8){
         short printTemp = EEPROM[i] | (EEPROM[i+1] << 8);
         Serial.print(F("Temp: ")); Serial.print( printTemp ); Serial.print(F(" *C ")); 
         Serial.print(F("Humidity: ")); Serial.print( EEPROM[i+2] ); Serial.println(F(" RH%"));
@@ -760,10 +787,10 @@ void temp_HISTORY(){
 
 //clears all data in EEPROM
 void clearEEPROM(){
-    for (int i = 0 ; i < EEPROM.length() ; i++) {
+    for (int i = 12 ; i < EEPROM.length() ; i++) {
         EEPROM.write(i, 0);
     }
-    eeAddress = 0;
+    eeAddress = 12;
 }
 
 //prints the current time
@@ -802,7 +829,7 @@ void set_TIME()
 void temp_HIGH_LOW(){
     int high = 0;
     int low = 1000;
-    byte j = 1;
+    byte j = 13;
     for(byte i = 1; i < eeAddress/8; i++){
         if(EEPROM[j] > high){
             high = EEPROM[j];
@@ -976,40 +1003,34 @@ void myStrncat(char dest[], char src[], byte length)
     }
 }
 
-int menu;
-int command;
-int currentMenu = 5;
-char statsBuffer[100];
+
 int changeMenu(){
-    int pressed;
+    static long int timer = 0;
     int button = readButtons();
-    if (button){
-        delay(20);
-        pressed = button;
-        button = readButtons();
-        if (button == 0){
-            menu = pressed;
+    if (timer < millis()){
+        if (button){ 
+            button = readButtons();
+            menu = button;
+            timer = millis()+500;
+        }
+        else{
+            timer = millis()+100;
         }
     }
-    else{
-        delay(50);
-    }
-
 }
 
 int changeCommand(){
-    int pressed;
+    static long int timer = 0;
     int button = readButtons();
-    if (button){
-        delay(20);
-        pressed = button;
-        button = readButtons();
-        if (button == 0){
-            command = pressed;
+    if (timer < millis()){
+        if (button){ 
+            button = readButtons();
+            command = button;
+            timer = millis()+500;
         }
-    }
-    else{
-        delay(50);
+        else{
+            timer = millis()+100;
+        }
     }
 }
 
@@ -1026,10 +1047,9 @@ void homeMenu(){
 }
 
 void historyMenu(){
-    //changeCommand();
     lcd.clear();
     int sec = 0;
-    for (int i = 1; i < eeAddress; i+= 8){
+    for (int i = 13; i < eeAddress; i+= 8){
         short printTemp = EEPROM[i] | (EEPROM[i+1] << 8);
         lcd.setCursor(sec, 0);
         lcd.print(printTemp); lcd.print(F(" *C ")); lcd.print(short(EEPROM[i+2])); lcd.print(F(" RH% "));
@@ -1050,6 +1070,23 @@ void statsMenu(char sB[]){
     menu = 0;
 }
 
+void settingsMenu(){
+    lcd.clear();
+    lcd.print("^ IP/Subnet/Gateway");
+    lcd.setCursor(0,1);
+    lcd.print("< Erase > Temp Thresholds");
+    
+    menu = 0;
+}
+
+void eraseHistory(){
+    lcd.clear();
+    lcd.print("Are You Sure?");
+    lcd.setCursor(0,1);
+    lcd.print("Yes(->) No(Home)");
+    menu = 0;
+}
+
 //main loop
 void loop(){
     current_TEMP();
@@ -1060,50 +1097,87 @@ void loop(){
     led_BLINK2(); //start LED blinking
     led_ALTERNATE(); //start LED ALTERNATEping colors
 
-    if (currentMenu == 5){
+    if (currentMenu == 5){ //home menu
         changeMenu();
         if (menu == 5){
             homeMenu();
         }
-        if (menu == 1){
+        else if (menu == 1){
             historyMenu();
             currentMenu = 1;
         }
-        if (menu == 2){
+        else if (menu == 2){
             statsMenu(statsBuffer);
             currentMenu = 2;
         }
+        else if (menu == 3){
+            settingsMenu();
+            currentMenu = 3;
+        }
     }
-    if (currentMenu == 1){
+    if (currentMenu == 1){ //history menu
         changeCommand();
-        if (command == 2){
+        if (command == 1){
             lcd.scrollDisplayRight();
-            command = 0;
         }
-        if (command == 3){
+        else if (command == 4){
             lcd.scrollDisplayLeft();
-            command = 0;
         }
-        if (command == 5){
+        else if (command == 5){
             currentMenu = 5;
-            command = 0;
+            
         }
+        command = 0;
     }
-    if (currentMenu == 2){
+    if (currentMenu == 2){ //stats menu
         changeCommand();
-        if (command == 2){
+        if (command == 1){
             lcd.scrollDisplayRight();
-            command = 0;
         }
-        if (command == 3){
+        else if (command == 4){
             lcd.scrollDisplayLeft();
-            command = 0;
         }
-        if (command == 5){
+        else if (command == 5){
             currentMenu = 5;
-            command = 0;
+            
         }
+        command = 0;
     }
+    if (currentMenu == 3){ //settings menu
+        changeCommand();
+        if (command == 4){
+            //temp threshold
+        }
+        else if (command == 2){
+            //change ip
+        }
+        else if (command == 1){
+            //erase history
+            currentMenu = 6;
+            eraseHistory();
+        }
+        else if (command == 3){
+            lcd.scrollDisplayLeft();
+        }
+        else if (command == 5){
+            currentMenu = 5; 
+        }
+        command = 0;
+    }
+    if (currentMenu == 6){ //erase confirm menu
+        changeCommand();
+        if (command == 4){
+            clearEEPROM();
+            currentMenu = 5;
+            menu = 5;
+        }
+        else if (command == 5){
+            currentMenu = 5;
+        }
+        command = 0;
+
+    }
+
     char c = '\0'; //temp value for each character the user enters
     currentMillis = millis(); //sets current time to how much time has passed in the program so far
     
@@ -1549,7 +1623,7 @@ void loop(){
                                 switch (tokenBuffer[2]){
                                     case t_EOL:
                                         temp_HISTORY();
-                                        if (EEPROM[0] == 0){
+                                        if (EEPROM[12] == 0){
                                             Serial.println(F("*NO DATA YET"));
                                         }
                                     break;
