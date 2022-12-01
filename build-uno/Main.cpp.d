@@ -61,4 +61,6 @@ build-uno/Main.cpp.o: Main.cpp \
  /home/jack/arduino/arduino-1.8.19/libraries/Ethernet/src/EthernetUdp.h \
  /home/jack/arduino/arduino-1.8.19/libraries/Ethernet/src/Ethernet.h \
  /home/jack/arduino/arduino-1.8.19/hardware/arduino/avr/libraries/SPI/src/SPI.h \
- led_controller.h
+ /home/jack/Arduino/libraries/LiquidCrystal_I2C/LiquidCrystal_I2C.h \
+ /home/jack/arduino/arduino-1.8.19/hardware/arduino/avr/cores/arduino/Print.h \
+ keypad.h led_controller.h

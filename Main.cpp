@@ -7,8 +7,9 @@
 #include <Ethernet.h>
 #include <EthernetUdp.h>
 #include <SPI.h>
-//#include<string.h>
+#include <LiquidCrystal_I2C.h>
 
+#include "keypad.h"
 #include "led_controller.h"
 
 #define def_COUNT 24 //number of defines
@@ -20,9 +21,10 @@ byte mac[] = {
 };
 IPAddress ip(192, 168, 1, 177);
 unsigned int localPort = 8888;      // local port to listen on
-char packetBuffer[UDP_TX_PACKET_MAX_SIZE];  // buffer to hold incoming packet,
+char packetBuffer[20];  // buffer to hold incoming packet,
 EthernetUDP Udp;
 
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 int eeAddress = EEPROM[0]; //element tracker for EEPROM
 
@@ -176,11 +178,13 @@ void setup(){
     while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
     }
-
-    
-
     // start UDP
     Udp.begin(localPort);
+
+    // initialize the LCD
+	lcd.begin();
+	// Turn on the blacklight and print a message.
+	lcd.backlight();
 }
 
 
@@ -883,6 +887,9 @@ void clearTokenBuffer(){
 //shows error
 void showError(){
     Serial.println(F("*INVALID COMMAND"));
+    Udp.beginPacket(ipRemote, remotePort);
+    Udp.print(F("*INVALID COMMAND"));
+    Udp.endPacket();
 }
 
 //clears the packetbuffer
@@ -907,53 +914,40 @@ void myStrcpy(char og[30], char str[30]){
 
 //send out alarm packet if temp threshold is crossed
 void alarmPacket(){
-    
-    if (celsiusToFarenheit(currTemp) <= 60 && alarm != 5){
+    //Udp.beginPacket(ipRemote, remotePort);
+    short faren = celsiusToFarenheit(currTemp);
+    if (faren <= 60 && alarm != 5){
         alarm = 5;
-        Udp.beginPacket(ipRemote, remotePort);
         Udp.print(F("Major Under"));
-        Udp.endPacket();
         leds[2].green = 255;
         leds[2].red = 0;
         leds[2].blue = 255;
-        FastLED.show();
     }
-    else if (celsiusToFarenheit(currTemp) > 60 && celsiusToFarenheit(currTemp) <= 70 && alarm != 6){
+    else if (faren > 60 && faren <= 70 && alarm != 6){
         alarm = 6;
-        Udp.beginPacket(ipRemote, remotePort);
         Udp.print(F("Minor Under"));
-        Udp.endPacket();
         leds[2] = CRGB::Blue;
-        FastLED.show();
-
     }
-    else if (celsiusToFarenheit(currTemp) > 70 && celsiusToFarenheit(currTemp) <= 80 && alarm != 7){
+    else if (faren > 70 && faren <= 80 && alarm != 7){
         alarm = 7;
-        Udp.beginPacket(ipRemote, remotePort);
         Udp.print(F("Comfortable"));
-        Udp.endPacket();
         leds[2] = CRGB::Red; //actually green
-        FastLED.show();
     }
-    else if (celsiusToFarenheit(currTemp) > 80 && celsiusToFarenheit(currTemp) <= 90 && alarm != 8){
+    else if (faren > 80 && faren <= 90 && alarm != 8){
         alarm = 8;
-        Udp.beginPacket(ipRemote, remotePort);
         Udp.print(F("Minor Over"));
-        Udp.endPacket();
         leds[2].green = 255;
         leds[2].red = 75;
         leds[2].blue = 0;
-        FastLED.show();
 
     }
-    else if (celsiusToFarenheit(currTemp) > 90 && alarm != 9){
+    else if (faren > 90 && alarm != 9){
         alarm = 9;
-        Udp.beginPacket(ipRemote, remotePort);
         Udp.print(F("Major Over"));
-        Udp.endPacket();
         leds[2] = CRGB::Green; //actually red
-        FastLED.show();
     }
+    //Udp.endPacket();
+    FastLED.show();
 }
 
 //takes in udp packets and add them to the string buffer
@@ -982,6 +976,80 @@ void myStrncat(char dest[], char src[], byte length)
     }
 }
 
+int menu;
+int command;
+int currentMenu = 5;
+char statsBuffer[100];
+int changeMenu(){
+    int pressed;
+    int button = readButtons();
+    if (button){
+        delay(20);
+        pressed = button;
+        button = readButtons();
+        if (button == 0){
+            menu = pressed;
+        }
+    }
+    else{
+        delay(50);
+    }
+
+}
+
+int changeCommand(){
+    int pressed;
+    int button = readButtons();
+    if (button){
+        delay(20);
+        pressed = button;
+        button = readButtons();
+        if (button == 0){
+            command = pressed;
+        }
+    }
+    else{
+        delay(50);
+    }
+}
+
+void homeMenu(){
+    lcd.clear();
+    lcd.print(F("Temp: "));
+    lcd.print(currTemp);
+    lcd.print(F(" *C "));
+    lcd.setCursor(0,1);
+    lcd.print(F("Humid: "));
+    lcd.print(currHumid);
+    lcd.print(F(" RH%"));
+    menu = 0;
+}
+
+void historyMenu(){
+    //changeCommand();
+    lcd.clear();
+    int sec = 0;
+    for (int i = 1; i < eeAddress; i+= 8){
+        short printTemp = EEPROM[i] | (EEPROM[i+1] << 8);
+        lcd.setCursor(sec, 0);
+        lcd.print(printTemp); lcd.print(F(" *C ")); lcd.print(short(EEPROM[i+2])); lcd.print(F(" RH% "));
+        lcd.setCursor(sec, 1);
+        lcd.print(EEPROM[i+6]); lcd.print('/');
+        lcd.print(EEPROM[i+7]); lcd.print('/');
+        lcd.print(EEPROM[i+5]); lcd.print(' ');
+        lcd.print(EEPROM[i+3]); lcd.print(':');
+        lcd.print(EEPROM[i+4]); 
+        sec += 14;
+    }
+    menu = 0;
+}
+
+void statsMenu(char sB[]){
+    lcd.clear();
+    lcd.print(sB);
+    menu = 0;
+}
+
 //main loop
 void loop(){
     current_TEMP();
@@ -991,6 +1059,51 @@ void loop(){
     d13_BLINK(); //starts D13 blinking
     led_BLINK2(); //start LED blinking
     led_ALTERNATE(); //start LED ALTERNATEping colors
+
+    if (currentMenu == 5){
+        changeMenu();
+        if (menu == 5){
+            homeMenu();
+        }
+        if (menu == 1){
+            historyMenu();
+            currentMenu = 1;
+        }
+        if (menu == 2){
+            statsMenu(statsBuffer);
+            currentMenu = 2;
+        }
+    }
+    if (currentMenu == 1){
+        changeCommand();
+        if (command == 2){
+            lcd.scrollDisplayRight();
+            command = 0;
+        }
+        if (command == 3){
+            lcd.scrollDisplayLeft();
+            command = 0;
+        }
+        if (command == 5){
+            currentMenu = 5;
+            command = 0;
+        }
+    }
+    if (currentMenu == 2){
+        changeCommand();
+        if (command == 2){
+            lcd.scrollDisplayRight();
+            command = 0;
+        }
+        if (command == 3){
+            lcd.scrollDisplayLeft();
+            command = 0;
+        }
+        if (command == 5){
+            currentMenu = 5;
+            command = 0;
+        }
+    }
     char c = '\0'; //temp value for each character the user enters
     currentMillis = millis(); //sets current time to how much time has passed in the program so far
     
@@ -1017,6 +1130,7 @@ void loop(){
     while (Serial.available()){
         c = toupper(Serial.read());
         myStrncat(buffer, &c, 1);
+        
         if (c == 127){ //Handle backspace on terminal
             Serial.print("\033[D");
             Serial.print(" ");
@@ -1037,9 +1151,9 @@ void loop(){
     //if 'enter' is clicked, checks what user typed and applies to arduino
     if (c == 13){
         Serial.println();
-        
         //parses the string the user entered
         for(byte i = 0; i < myStrlen(buffer); i++){
+            myStrncat(statsBuffer, &buffer[i], 1);
             if(!isspace(buffer[i])){
                 parsedString[wordNum][charNum] = buffer[i];
                 charNum++; 
@@ -1051,11 +1165,12 @@ void loop(){
             }
         }
 
+
         fillTokenBuffer(parsedString, definesArr); //filling token buffer based off parsed string
         
         //buffer[0] = {'\0'}; 
         memset(buffer, 0, sizeof(buffer)); //terminates buffer 
-
+        
         //cheking token buffer and applying to arduino
         if (currentMillis - msStart > 500)
         {
