@@ -645,6 +645,7 @@ void five_SECOND_TEMP(){
         Udp.print((float)currHumid); Udp.print(F(" RH%"));
         Udp.endPacket();
         timer= millis()+5000;
+        packetCount++;
         
 
     }
@@ -707,6 +708,7 @@ void temp_HISTORY(){
         Udp.print(F(" At: ")); Udp.print(EEPROM[i+3]); Udp.print(':');
         Udp.print(EEPROM[i+4]);
         Udp.endPacket();
+        packetCount++;
     }
 }
 
@@ -861,62 +863,65 @@ void myStrcpy(char og[30], char str[30]){
     og[i] = '\0';
 }
 
-
-
-
-
-//send out alarm packet if temp threshold is crossed
-void alarmPacket(){
-    //Udp.beginPacket(ipRemote, remotePort);
+bool thresholdSent = false;
+byte tempThresholdState(){
     short faren = celsiusToFarenheit(currTemp);
-    if (faren <= majUnd && alarm != 5){
-        Udp.beginPacket(ipRemote, remotePort);
-        alarm = 5;
-        Udp.print(F("Major Under"));
-        leds[2].green = 255;
-        leds[2].red = 0;
-        leds[2].blue = 255;
-        Udp.endPacket();
-        packetCount++;
+    if (faren <= majUnd){
+        return 5;
     }
-    else if (faren >= lowMinUnd && faren <= highMinUnd && alarm != 6){
-        Udp.beginPacket(ipRemote, remotePort);
-        alarm = 6;
-        Udp.print(F("Minor Under"));
-        leds[2] = CRGB::Blue;
-        Udp.endPacket();
-        packetCount++;
+    else if(faren >= lowMinUnd && faren <= highMinUnd){
+        return 6;
     }
-    else if (faren >= lowCom && faren <= highCom && alarm != 7){
-        Udp.beginPacket(ipRemote, remotePort);
-        alarm = 7;
-        Udp.print(F("Comfortable"));
-        leds[2] = CRGB::Red; //actually green
-        Udp.endPacket();
-        packetCount++;
+    else if(faren >= lowCom && faren <= highCom){
+        return 7;
     }
-    else if (faren >= lowMinOve && faren <= highMinOve && alarm != 8){
-        Udp.beginPacket(ipRemote, remotePort);
-        alarm = 8;
-        Udp.print(F("Minor Over"));
-        leds[2].green = 255;
-        leds[2].red = 75;
-        leds[2].blue = 0;
-        Udp.endPacket();
-        packetCount++;
+    else if(faren >= lowMinOve && faren <= highMinOve){
+        return 8;
+    }
+    else if(faren >= majOve){
+        return 9;
+    }
 
-    }
-    else if (faren >= majOve && alarm != 9){
-        Udp.beginPacket(ipRemote, remotePort);
-        alarm = 9;
-        Udp.print(F("Major Over"));
-        leds[2] = CRGB::Green; //actually red
-        Udp.endPacket();
-        packetCount++;
-    }
-    //Udp.endPacket();
-    FastLED.show();
 }
+
+void sendAlarmPacket(byte tempState){
+    if (tempState != alarm){
+        Udp.beginPacket(ipRemote, remotePort);
+        if (tempState == 5){
+            alarm = 5;
+            Udp.print(F("Major Under"));
+            leds[2].green = 255;
+            leds[2].red = 0;
+            leds[2].blue = 255;
+        }
+        else if(tempState == 6){
+            alarm = 6;
+            Udp.print(F("Minor Under"));
+            leds[2] = CRGB::Blue;
+        }
+        else if(tempState == 7){
+            alarm = 7;
+            Udp.print(F("Comfortable"));
+            leds[2] = CRGB::Red; //actually green
+        }
+        else if(tempState == 8){
+            alarm = 8;
+            Udp.print(F("Minor Over"));
+            leds[2].green = 255;
+            leds[2].red = 75;
+            leds[2].blue = 0;
+        }
+        else if(tempState == 9){
+            alarm = 9;
+            Udp.print(F("Major Over"));
+            leds[2] = CRGB::Green; //actually red
+        }
+        packetCount++;
+        Udp.endPacket();
+        FastLED.show();
+    }
+}
+
 
 //takes in udp packets and add them to the string buffer
 void receivePackets(){
@@ -1309,7 +1314,9 @@ void loop(){
         leds[1] = CRGB::Red;
         FastLED.show();
         receivePackets();
-        alarmPacket();
+        //alarmPacket();
+        sendAlarmPacket(tempThresholdState());
+
         
     }
 
