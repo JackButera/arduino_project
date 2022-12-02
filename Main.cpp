@@ -19,9 +19,9 @@
 byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
 };
-IPAddress ip(192, 168, 1, 177);
+IPAddress ip(192,168,1,177);
 unsigned int localPort = 8888;      // local port to listen on
-char packetBuffer[20];  // buffer to hold incoming packet,
+char packetBuffer[30];  // buffer to hold incoming packet,
 EthernetUDP Udp;
 
 IPAddress subnet(255,255,255,0);
@@ -102,14 +102,11 @@ unsigned long msPrev = 0; //last time something was ran in proram
 
 
 unsigned long interval = 500; //blink interval time 
-static bool d13_status = 0; //whether or not D13 is on or off
 char led_status = 'O'; //status of current led, 'O'->OFF, 'R'->RED, 'G'->GREEN
 char led_Previous = 'R'; //status of last color led input, 'O'->OFF, 'R'->RED, 'G'->GREEN
-static bool d13_goBlink = false; //blink booolen to tell D13 to blink or not
 static bool led_goBlink = false; //blink booolen to tell LED to blink or not
 static bool led_goALTERNATE = false; //alternates led colors if true
 static bool ledForce = false; //forces led blink
-static bool d13Force = false; //forces d13 blink
 
 int RGB_brightness = 30; //preset brightness for RGB
 static bool RGB_status = 0; //rgb status
@@ -138,7 +135,7 @@ byte second = 0;
 //UDP packet alarm info
 byte alarm = 0;
 IPAddress ipRemote(192,168,1,180);
-unsigned int remotePort = 46065;
+unsigned int remotePort = 56866;
 bool receivedPacket = false;
 
 
@@ -169,6 +166,14 @@ void introPrompt(){
     Serial.println(F(">Welcome to Arduino Command Line Interpreter, enter 'HELP' for list of commands!\n"));
 }
 
+byte majUnd = 60;
+byte lowMinUnd = 61;
+byte highMinUnd = 70;
+byte lowCom = 71;
+byte highCom = 80;
+byte lowMinOve = 81;
+byte highMinOve = 90;
+byte majOve = 91;
 
 //setup function
 void setup(){  
@@ -176,9 +181,6 @@ void setup(){
     Ethernet.begin(mac, ip);
     Serial.begin(9600);
     Clock.begin();
-    FastLED.addLeds<WS2812B,7>(leds, NUM_LEDS);
-    FastLED.addLeds<WS2812B,7>(leds, NUM_LEDS);
-    FastLED.addLeds<WS2812B,7>(leds, NUM_LEDS);
     FastLED.addLeds<WS2812B,7>(leds, NUM_LEDS);
     FastLED.setBrightness(RGB_brightness);
     leds[0] = CRGB::Black;
@@ -199,18 +201,7 @@ void setup(){
 	// Turn on the blacklight and print a message.
 	lcd.backlight();
     menu = 5;
-    EEPROM.put(0,ip[0]);
-    EEPROM.put(1,ip[1]);
-    EEPROM.put(2,ip[2]);
-    EEPROM.put(3,ip[3]);
-    EEPROM.put(4,subnet[0]);
-    EEPROM.put(5,subnet[1]);
-    EEPROM.put(6,subnet[2]);
-    EEPROM.put(7,subnet[3]);
-    EEPROM.put(8,gateway[0]);
-    EEPROM.put(9,gateway[1]);
-    EEPROM.put(10,gateway[2]);
-    EEPROM.put(11,gateway[3]);
+
     
 }
 
@@ -218,9 +209,9 @@ void setup(){
 
 //clears the parsed string for next set of input
 void clearParsedString(char arr[MAX_ARGS][MAX_BUF]){
-  for(uint8_t i = 0; i <=MAX_ARGS; i++){
+  for(byte i = 0; i <=MAX_ARGS; i++){
     for(uint8_t j=0; j<=MAX_BUF;j++){
-      arr[i][j] = '\0';
+      arr[i][j] = 0;
     }
   }
   return;
@@ -439,32 +430,6 @@ void ADD(){
 
 }
 
-//turns D13 on
-void d13_ON(){
-    d13_status = 1;
-    digitalWrite(13,d13_status);
-}
-
-//turns D13 off
-void d13_OFF(){
-    d13_status = 0;
-    digitalWrite(13,d13_status);
-}
-
-//makes D13 blink
-void d13_BLINK()
-{
-    static long int timer = 0;
-    
-    if((timer<millis() && d13_goBlink) || d13Force == true)
-    {
-        d13Force = false;
-        d13_status= !d13_status;
-        timer= millis()+interval;
-        digitalWrite(13, d13_status);
-        
-    }
-}
 
 //turns the led green
 void led_GREEN(){
@@ -484,32 +449,6 @@ void led_RED(){
 void led_OFF(){
     led_status = 'O';
     setColor(led_status);
-}
-
-//makes the led blink based off of last color it was set to
-void led_BLINK(){
-    static long int ledTimer = 0;
-    if ((ledTimer < millis() && led_goBlink) || ledForce == true){
-        if ((led_Previous == 'O' || led_Previous == 'R') && led_status == 'O'){
-            led_Previous = 'R';
-            led_status = 'R';
-            ledTimer = millis()+interval;
-            led_RED();
-            ledForce = false;
-        }
-        else if (led_Previous == 'G' && led_status == 'O'){
-            led_status = 'G';
-            ledTimer = millis()+interval;
-            led_GREEN();
-            ledForce = false;
-        }
-        else if (led_status == 'R' || led_status == 'G'){
-            led_status = 'O';
-            ledTimer = millis()+interval;
-            led_OFF();
-            ledForce = false;
-        } 
-    }
 }
 
 
@@ -597,23 +536,6 @@ void led_ALTERNATE(){
 //prints the status of both leds
 void status_LEDS(){
     Udp.beginPacket(ipRemote, remotePort);
-    Serial.print(F("> D13 "));
-    Udp.print(F("> D13 "));
-        
-    if (d13_goBlink){
-        Serial.println(F("BLINKING"));
-        Udp.print(F("BLINKING "));
-    }
-    else if(!d13_goBlink){
-        if(d13_status){
-            Serial.println(F("ON"));
-            Udp.print(F("ON "));
-        }
-        else{
-            Serial.println(F("OFF"));
-            Udp.print(F("OFF "));
-        }
-    }
     Serial.print(F("> LED "));
     Udp.print(F("> LED "));
     if (led_goBlink  && !led_goALTERNATE){
@@ -660,11 +582,11 @@ void status_LEDS(){
     }
 
     if (RGB_goBlink){
-        Serial.print(F("> RGB BLINKING ("));
-        Serial.print(userGREEN); Serial.print(' ');
-        Serial.print(userRED); Serial.print(' ');
-        Serial.print(userBLUE);
-        Serial.println(')');
+        // Serial.print(F("> RGB BLINKING ("));
+        // Serial.print(userGREEN); Serial.print(' ');
+        // Serial.print(userRED); Serial.print(' ');
+        // Serial.print(userBLUE);
+        // Serial.println(')');
         Udp.print(F("> RGB BLINKING ("));
         Udp.print(userGREEN); Udp.print(' ');
         Udp.print(userRED); Udp.print(' ');
@@ -676,11 +598,11 @@ void status_LEDS(){
         Serial.print(F("> RGB "));
         Udp.print(F("> RGB "));
         if (RGB_status){
-            Serial.print(F("ON ("));
-            Serial.print(userGREEN); Serial.print(", ");
-            Serial.print(userRED); Serial.print(", ");
-            Serial.print(userBLUE);
-            Serial.println(')');
+            // Serial.print(F("ON ("));
+            // Serial.print(userGREEN); Serial.print(", ");
+            // Serial.print(userRED); Serial.print(", ");
+            // Serial.print(userBLUE);
+            // Serial.println(')');
             Udp.print("ON (");
             Udp.print(userGREEN); Udp.print(", ");
             Udp.print(userRED); Udp.print(", ");
@@ -711,9 +633,9 @@ void five_SECOND_TEMP(){
 
     if (timer<millis() && showTemp == true){
         dht22.read2(&currTemp, &currHumid, NULL);
-        Serial.print((float)currTemp); Serial.print(F(" *C, "));
-        Serial.print(celsiusToFarenheit(currTemp)); Serial.print(F(" *F, "));
-        Serial.print((float)currHumid); Serial.println(F(" RH%"));
+        // Serial.print((float)currTemp); Serial.print(F(" *C, "));
+        // Serial.print(celsiusToFarenheit(currTemp)); Serial.print(F(" *F, "));
+        // Serial.print((float)currHumid); Serial.println(F(" RH%"));
         
         Udp.beginPacket(ipRemote, remotePort);
         Udp.print(float(currTemp)); Udp.print(F(" *C, "));
@@ -762,6 +684,7 @@ void write_TO_EEPROM(){
 
 //prints all data in EEPROM
 void temp_HISTORY(){
+
     for (int i = 13; i < eeAddress; i+= 8){
         short printTemp = EEPROM[i] | (EEPROM[i+1] << 8);
         Serial.print(F("Temp: ")); Serial.print( printTemp ); Serial.print(F(" *C ")); 
@@ -787,10 +710,11 @@ void temp_HISTORY(){
 
 //clears all data in EEPROM
 void clearEEPROM(){
-    for (int i = 12 ; i < EEPROM.length() ; i++) {
+    for (int i = 13 ; i < EEPROM.length() ; i++) {
         EEPROM.write(i, 0);
     }
     eeAddress = 12;
+    EEPROM[12] = 12;
 }
 
 //prints the current time
@@ -920,8 +844,8 @@ void showError(){
 }
 
 //clears the packetbuffer
-void clearPacketBuffer(char clearing[UDP_TX_PACKET_MAX_SIZE]){
-    for (byte i = 0; i < UDP_TX_PACKET_MAX_SIZE; i++){
+void clearPacketBuffer(char clearing[30]){
+    for (byte i = 0; i < 30; i++){
         clearing[i] = '\0';
     }
 }
@@ -943,35 +867,45 @@ void myStrcpy(char og[30], char str[30]){
 void alarmPacket(){
     //Udp.beginPacket(ipRemote, remotePort);
     short faren = celsiusToFarenheit(currTemp);
-    if (faren <= 60 && alarm != 5){
+    if (faren <= majUnd && alarm != 5){
+        Udp.beginPacket(ipRemote, remotePort);
         alarm = 5;
         Udp.print(F("Major Under"));
         leds[2].green = 255;
         leds[2].red = 0;
         leds[2].blue = 255;
+        Udp.endPacket();
     }
-    else if (faren > 60 && faren <= 70 && alarm != 6){
+    else if (faren >= lowMinUnd && faren <= highMinUnd && alarm != 6){
+        Udp.beginPacket(ipRemote, remotePort);
         alarm = 6;
         Udp.print(F("Minor Under"));
         leds[2] = CRGB::Blue;
+        Udp.endPacket();
     }
-    else if (faren > 70 && faren <= 80 && alarm != 7){
+    else if (faren >= lowCom && faren <= highCom && alarm != 7){
+        Udp.beginPacket(ipRemote, remotePort);
         alarm = 7;
         Udp.print(F("Comfortable"));
         leds[2] = CRGB::Red; //actually green
+        Udp.endPacket();
     }
-    else if (faren > 80 && faren <= 90 && alarm != 8){
+    else if (faren >= lowMinOve && faren <= highMinOve && alarm != 8){
+        Udp.beginPacket(ipRemote, remotePort);
         alarm = 8;
         Udp.print(F("Minor Over"));
         leds[2].green = 255;
         leds[2].red = 75;
         leds[2].blue = 0;
+        Udp.endPacket();
 
     }
-    else if (faren > 90 && alarm != 9){
+    else if (faren >= majOve && alarm != 9){
+        Udp.beginPacket(ipRemote, remotePort);
         alarm = 9;
         Udp.print(F("Major Over"));
         leds[2] = CRGB::Green; //actually red
+        Udp.endPacket();
     }
     //Udp.endPacket();
     FastLED.show();
@@ -983,7 +917,7 @@ void receivePackets(){
     if (packetSize) {
         receivedPacket = true;
         // read the packet into packetBufffer
-        Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
+        Udp.read(packetBuffer, 30);
         Serial.print(packetBuffer);
         Serial.print(F(" *PACKET RECEIVED"));
         myStrcpy(buffer, packetBuffer);
@@ -1072,20 +1006,63 @@ void statsMenu(char sB[]){
 
 void settingsMenu(){
     lcd.clear();
-    lcd.print("^ IP/Subnet/Gateway");
+    lcd.print(F(" ^ IP/Subnet/Gateway"));
     lcd.setCursor(0,1);
-    lcd.print("< Erase > Temp Thresholds");
+    lcd.print(F(" < Erase > Temp Thresholds"));
     
     menu = 0;
 }
 
-void eraseHistory(){
+void eraseHistoryMenu(){
     lcd.clear();
-    lcd.print("Are You Sure?");
+    lcd.print(F("Are You Sure?"));
     lcd.setCursor(0,1);
-    lcd.print("Yes(->) No(Home)");
+    lcd.print(F("Yes(->) No(Home)"));
     menu = 0;
 }
+
+void changeIPMenu(){
+    lcd.clear();
+    for (byte i = 0; i < 12; i++){
+        lcd.print(EEPROM[i]);
+        if (i == 3 || i == 7 || i == 11){
+            lcd.print(' ');
+        }
+        else{
+            lcd.print('.');
+        }
+    }
+    menu = 0;
+}
+
+void tempThresholdMenu(){
+    lcd.clear();
+    lcd.print(F("<="));
+    lcd.print(majUnd); lcd.print(' ');
+    lcd.print(lowMinUnd); lcd.print('-'); lcd.print(highMinUnd); lcd.print(' ');
+    lcd.print(lowCom); lcd.print('-'); lcd.print(highCom); lcd.print(' ');
+    lcd.print(lowMinOve); lcd.print('-'); lcd.print(highMinOve); lcd.print(' ');
+    lcd.print(F(">=")); lcd.print(majOve); 
+    menu = 0;
+}
+
+int replace100(int old, int dig){
+    int ret = old - old%1000 + old%100 + dig*100;
+    return ret;
+}
+int replace10(int old, int dig){
+    int ret = old - old%100 + old%10 + dig*10;
+    return ret;
+}
+int replace1(int old, int dig){
+    int ret = old - old%10 + old%1 + dig*1;
+    return ret;
+}
+
+byte cursorI = 6;
+byte cycle = 0;
+
+
 
 //main loop
 void loop(){
@@ -1093,10 +1070,9 @@ void loop(){
     five_SECOND_TEMP();
     write_TO_EEPROM();
     RGB_BLINK();
-    d13_BLINK(); //starts D13 blinking
     led_BLINK2(); //start LED blinking
     led_ALTERNATE(); //start LED ALTERNATEping colors
-
+    //menuSystem();
     if (currentMenu == 5){ //home menu
         changeMenu();
         if (menu == 5){
@@ -1117,6 +1093,7 @@ void loop(){
     }
     if (currentMenu == 1){ //history menu
         changeCommand();
+        lcd.noCursor();
         if (command == 1){
             lcd.scrollDisplayRight();
         }
@@ -1131,6 +1108,7 @@ void loop(){
     }
     if (currentMenu == 2){ //stats menu
         changeCommand();
+        lcd.noCursor();
         if (command == 1){
             lcd.scrollDisplayRight();
         }
@@ -1145,16 +1123,22 @@ void loop(){
     }
     if (currentMenu == 3){ //settings menu
         changeCommand();
+        lcd.noCursor();
         if (command == 4){
             //temp threshold
+            currentMenu = 8;
+            tempThresholdMenu();
         }
         else if (command == 2){
             //change ip
+            currentMenu = 7;
+            changeIPMenu();
+
         }
         else if (command == 1){
             //erase history
             currentMenu = 6;
-            eraseHistory();
+            eraseHistoryMenu();
         }
         else if (command == 3){
             lcd.scrollDisplayLeft();
@@ -1175,7 +1159,127 @@ void loop(){
             currentMenu = 5;
         }
         command = 0;
+    }
+    if (currentMenu == 7){ //change ip menu
+        changeCommand();
+        
+        if (command == 1){
+            lcd.scrollDisplayRight();
+            if (cursorI == 0){
+                cursorI = 40;
+            }
+            cursorI--;
+            lcd.setCursor(cursorI, 1);
+            cycle = 1;
+            
+        }
+        else if (command == 2){
+            lcd.noCursor();
+            lcd.setCursor(cursorI, 0);
+            lcd.print(cycle);
+            if (cursorI == 0){EEPROM[0] = replace100(EEPROM[0], cycle);}
+            else if (cursorI == 1){EEPROM[0] = replace10(EEPROM[0], cycle);}
+            else if (cursorI == 2){EEPROM[0] = replace1(EEPROM[0], cycle);}
+        
+            else if (cursorI == 4){EEPROM[1] = replace100(EEPROM[1], cycle);}
+            else if (cursorI == 5){EEPROM[1] = replace10(EEPROM[1], cycle);}
+            else if (cursorI == 6){EEPROM[1] = replace1(EEPROM[1], cycle);}
+            
+            else if (cursorI == 8){EEPROM[2] = replace1(EEPROM[2], cycle);}
 
+            else if (cursorI == 10){EEPROM[3] = replace100(EEPROM[3], cycle);}
+            else if (cursorI == 11){EEPROM[3] = replace10(EEPROM[3], cycle);}
+            else if (cursorI == 12){EEPROM[3] = replace1(EEPROM[3], cycle);}
+            
+            cycle++;
+            if (cycle == 10){
+                cycle = 0;
+            }
+        }
+        else if (command == 3){
+            lcd.setCursor(cursorI, 1);
+            lcd.cursor();
+            cycle = 0;
+        }
+        else if (command == 4){
+            lcd.scrollDisplayLeft();
+            if (cursorI == 40){
+                cursorI = 0;
+            }
+            cursorI++;
+            lcd.setCursor(cursorI, 1);
+            cycle = 0;
+        }
+        
+        else if (command == 5){
+            currentMenu = 5;
+        }
+        command = 0;
+    }
+    if (currentMenu == 8){ //change temp thresholds
+        changeCommand();
+        if (command == 1){
+            lcd.scrollDisplayRight();
+            if (cursorI == 0){
+                cursorI = 40;
+            }
+            cursorI--;
+            lcd.setCursor(cursorI, 1);
+            cycle = 1;
+        }
+        else if (command == 2){
+            if (cursorI )
+            lcd.noCursor();
+            lcd.setCursor(cursorI, 0);
+            lcd.print(cycle);
+            if (cursorI == 2){majUnd = replace10(majUnd, cycle);}
+            else if (cursorI == 3){majUnd = replace1(majUnd, cycle);}
+        
+            else if (cursorI == 5){lowMinUnd = replace10(lowMinUnd, cycle);}
+            else if (cursorI == 6){lowMinUnd = replace1(lowMinUnd, cycle);} 
+            else if (cursorI == 8){highMinUnd = replace10(highMinUnd, cycle);}
+            else if (cursorI == 9){highMinUnd = replace1(highMinUnd, cycle);} 
+
+        
+            else if (cursorI == 11){lowCom = replace10(lowCom, cycle);}
+            else if (cursorI == 12){lowCom = replace1(lowCom, cycle);} 
+            else if (cursorI == 14){highCom = replace10(highCom, cycle);}
+            else if (cursorI == 15){highCom = replace1(highCom, cycle);} 
+            
+        
+            else if (cursorI == 17){lowMinOve = replace10(lowMinOve, cycle);}
+            else if (cursorI == 18){lowMinOve = replace1(lowMinOve, cycle);} 
+            else if (cursorI == 20){highMinOve = replace10(highMinOve, cycle);}
+            else if (cursorI == 21){highMinOve = replace1(highMinOve, cycle);} 
+            
+        
+            else if (cursorI == 25){majOve = replace10(majOve, cycle);}
+            else if (cursorI == 26){majOve = replace1(majOve, cycle);}
+            
+            cycle++;
+            if (cycle == 10){
+                cycle = 0;
+            }
+        }
+
+        else if (command == 3){
+            lcd.setCursor(cursorI, 1);
+            lcd.cursor();
+            cycle = 0;
+        }
+        else if (command == 4){
+            lcd.scrollDisplayLeft();
+            if (cursorI == 40){
+                cursorI = 0;
+            }
+            cursorI++;
+            lcd.setCursor(cursorI, 1);
+            cycle = 0;
+        }
+        else if (command == 5){
+            currentMenu = 5;
+        }
+        command = 0;
     }
 
     char c = '\0'; //temp value for each character the user enters
@@ -1221,13 +1325,16 @@ void loop(){
         Serial.print(c);
     }
 
-
+    
     //if 'enter' is clicked, checks what user typed and applies to arduino
     if (c == 13){
         Serial.println();
         //parses the string the user entered
+        char right = '>';
+        myStrncat(statsBuffer, &right, 1);
         for(byte i = 0; i < myStrlen(buffer); i++){
             myStrncat(statsBuffer, &buffer[i], 1);
+            
             if(!isspace(buffer[i])){
                 parsedString[wordNum][charNum] = buffer[i];
                 charNum++; 
@@ -1238,11 +1345,11 @@ void loop(){
                 charNum = 0;
             }
         }
-
+        
+        
 
         fillTokenBuffer(parsedString, definesArr); //filling token buffer based off parsed string
         
-        //buffer[0] = {'\0'}; 
         memset(buffer, 0, sizeof(buffer)); //terminates buffer 
         
         //cheking token buffer and applying to arduino
@@ -1250,49 +1357,46 @@ void loop(){
         {
             showTemp = false;
             switch (tokenBuffer[0]){
-                    case t_D13:
-                        switch (tokenBuffer[1])
-                        {
-                            case t_ON:
-                                switch (tokenBuffer[2]){
-                                    case t_EOL:
-                                        d13_goBlink = false;
-                                        d13_ON();
-                                    break;
-                                    default:
-                                        showError();
-                                    break;
-                                }
+                    // case t_D13:
+                    //     switch (tokenBuffer[1])
+                    //     {
+                    //         case t_ON:
+                    //             switch (tokenBuffer[2]){
+                    //                 case t_EOL:
+                    //                     //d13_goBlink = false;
+                    //                 break;
+                    //                 default:
+                    //                     showError();
+                    //                 break;
+                    //             }
                                 
-                            break;
-                            case t_OFF:
-                                switch (tokenBuffer[2]){
-                                    case t_EOL:
-                                        d13_goBlink = false;
-                                        d13_OFF();
-                                    break;
-                                    default:
-                                        showError();
-                                    break;
-                                }
+                    //         break;
+                    //         case t_OFF:
+                    //             switch (tokenBuffer[2]){
+                    //                 case t_EOL:
+                    //                     //d13_goBlink = false;
+                    //                 break;
+                    //                 default:
+                    //                     showError();
+                    //                 break;
+                    //             }
                                 
-                            break;
-                            case t_BLINK:
-                                switch (tokenBuffer[2]){
-                                    case t_EOL:
-                                        d13_goBlink = true;
-                                        d13_BLINK();
-                                    break;
-                                    default:
-                                        showError();
-                                    break;
-                                }
-                            break;
-                            default:
-                                showError();
-                            break;
+                    //         break;
+                    //         case t_BLINK:
+                    //             switch (tokenBuffer[2]){
+                    //                 case t_EOL:
+                    //                     //d13_goBlink = true;
+                    //                 break;
+                    //                 default:
+                    //                     showError();
+                    //                 break;
+                    //             }
+                    //         break;
+                    //         default:
+                    //             showError();
+                    //         break;
                                     
-                        }
+                    //     }
                     break;
                     case t_LED:
                         switch (tokenBuffer[1])
@@ -1386,56 +1490,50 @@ void loop(){
                     case t_HELP:
                         switch (tokenBuffer[1]){
                                 case t_EOL:
-                                    Serial.println(F("The available commands are: "));
-                                    Serial.println(F("->D13 ON"));
-                                    Serial.println(F("->D13 OFF"));
-                                    Serial.println(F("->D13 BLINK"));
-                                    Serial.println(F("->LED GREEN"));
-                                    Serial.println(F("->LED RED"));
-                                    Serial.println(F("->LED OFF"));
-                                    Serial.println(F("->LED BLINK"));
-                                    Serial.println(F("->LED ALTERNATE"));
-                                    Serial.println(F("->SET BLINK <number>"));
-                                    Serial.println(F("->STATUS LEDS"));
-                                    Serial.println(F("->CURRENT TIME"));
-                                    Serial.println(F("->SET TIME <month> <day> <year> <hour> <minute> <second>"));
-                                    Serial.println(F("->CURRENT TEMP"));
-                                    Serial.println(F("->TEMP HISTORY"));
-                                    Serial.println(F("->TEMP HIGH LOW"));
-                                    Serial.println(F("->ADD <number1> <number2>"));
-                                    Serial.println(F("->RGB <red> <green> <blue>"));
-                                    Serial.println(F("->RGB ON"));
-                                    Serial.println(F("->RGB OFF"));
-                                    Serial.println(F("->RGB BLINK"));
-                                    Serial.println(F("->VERSION"));
-                                    Serial.println(F("->HELP"));
-                                    Serial.println();
+                                    // Serial.println(F("The available commands are: "));
+                                    // Serial.println(F("->LED GREEN"));
+                                    // Serial.println(F("->LED RED"));
+                                    // Serial.println(F("->LED OFF"));
+                                    // Serial.println(F("->LED BLINK"));
+                                    // Serial.println(F("->LED ALTERNATE"));
+                                    // Serial.println(F("->SET BLINK <number>"));
+                                    // Serial.println(F("->STATUS LEDS"));
+                                    // Serial.println(F("->CURRENT TIME"));
+                                    // Serial.println(F("->SET TIME <month> <day> <year> <hour> <minute> <second>"));
+                                    // Serial.println(F("->CURRENT TEMP"));
+                                    // Serial.println(F("->TEMP HISTORY"));
+                                    // Serial.println(F("->TEMP HIGH LOW"));
+                                    // Serial.println(F("->ADD <number1> <number2>"));
+                                    // Serial.println(F("->RGB <red> <green> <blue>"));
+                                    // Serial.println(F("->RGB ON"));
+                                    // Serial.println(F("->RGB OFF"));
+                                    // Serial.println(F("->RGB BLINK"));
+                                    // Serial.println(F("->VERSION"));
+                                    // Serial.println(F("->HELP"));
+                                    // Serial.println();
 
-                                    Udp.beginPacket(ipRemote, remotePort);
-                                    Udp.print(F("The available commands are: "));
-                                    Udp.print(F("->D13 ON"));
-                                    Udp.print(F("->D13 OFF"));
-                                    Udp.print(F("->D13 BLINK"));
-                                    Udp.print(F("->LED GREEN"));
-                                    Udp.print(F("->LED RED"));
-                                    Udp.print(F("->LED OFF"));
-                                    Udp.print(F("->LED BLINK"));
-                                    Udp.print(F("->LED ALTERNATE"));
-                                    Udp.print(F("->BLINK <number>"));
-                                    Udp.print(F("->STATUS LEDS"));
-                                    Udp.print(F("->CURRENT TIME"));
-                                    Udp.print(F("->SET TIME <month> <day> <year> <hour> <minute> <second>"));
-                                    Udp.print(F("->CURRENT TEMP"));
-                                    Udp.print(F("->TEMP HISTORY"));
-                                    Udp.print(F("->TEMP HIGH LOW"));
-                                    Udp.print(F("->ADD <number1> <number2>"));
-                                    Udp.print(F("->RGB <red> <green> <blue>"));
-                                    Udp.print(F("->RGB ON"));
-                                    Udp.print(F("->RGB OFF"));
-                                    Udp.print(F("->RGB BLINK"));
-                                    Udp.print(F("->VERSION"));
-                                    Udp.print(F("->HELP"));
-                                    Udp.endPacket();
+                                    // Udp.beginPacket(ipRemote, remotePort);
+                                    // Udp.print(F("The available commands are: "));
+                                    // Udp.print(F("->LED GREEN"));
+                                    // Udp.print(F("->LED RED"));
+                                    // Udp.print(F("->LED OFF"));
+                                    // Udp.print(F("->LED BLINK"));
+                                    // Udp.print(F("->LED ALTERNATE"));
+                                    // Udp.print(F("->BLINK <number>"));
+                                    // Udp.print(F("->STATUS LEDS"));
+                                    // Udp.print(F("->CURRENT TIME"));
+                                    // Udp.print(F("->SET TIME <month> <day> <year> <hour> <minute> <second>"));
+                                    // Udp.print(F("->CURRENT TEMP"));
+                                    // Udp.print(F("->TEMP HISTORY"));
+                                    // Udp.print(F("->TEMP HIGH LOW"));
+                                    // Udp.print(F("->ADD <number1> <number2>"));
+                                    // Udp.print(F("->RGB <red> <green> <blue>"));
+                                    // Udp.print(F("->RGB ON"));
+                                    // Udp.print(F("->RGB OFF"));
+                                    // Udp.print(F("->RGB BLINK"));
+                                    // Udp.print(F("->VERSION"));
+                                    // Udp.print(F("->HELP"));
+                                    // Udp.endPacket();
 
                                 break;
                                 default:
@@ -1447,12 +1545,12 @@ void loop(){
                     case t_VERSION:
                         switch (tokenBuffer[1]){
                                 case t_EOL:
-                                    Serial.print(F("Version: "));
-                                    Serial.print(version[0]);
-                                    Serial.print('.');
-                                    Serial.print(version[1]);
-                                    Serial.print('.');
-                                    Serial.println(version[2]);
+                                    // Serial.print(F("Version: "));
+                                    // Serial.print(version[0]);
+                                    // Serial.print('.');
+                                    // Serial.print(version[1]);
+                                    // Serial.print('.');
+                                    // Serial.println(version[2]);
                                     Udp.beginPacket(ipRemote, remotePort);
                                     Udp.print(F("Version: "));
                                     Udp.print(version[0]);
@@ -1480,9 +1578,6 @@ void loop(){
                                             case t_EOL:
                                                 if(led_goBlink == true){
                                                     ledForce = true;
-                                                }
-                                                if(d13_goBlink == true){
-                                                    d13Force = true;
                                                 }
                                                 if(RGB_goBlink){
                                                     RGBForce = true;
@@ -1623,7 +1718,7 @@ void loop(){
                                 switch (tokenBuffer[2]){
                                     case t_EOL:
                                         temp_HISTORY();
-                                        if (EEPROM[12] == 0){
+                                        if (EEPROM[12] == 12){
                                             Serial.println(F("*NO DATA YET"));
                                         }
                                     break;
@@ -1647,7 +1742,7 @@ void loop(){
                                         default:
                                             showError();
                                         break;
-
+ 
                                 }
                             break;
                             default:
@@ -1675,10 +1770,14 @@ void loop(){
                     break;                    
             }
         }
+        
         clearPacketBuffer(packetBuffer);
+        
         msStart = currentMillis; //for looping
         clearParsedString(parsedString); //clearing the parsed string for next input
         clearTokenBuffer(); // clearing the token buffer
+        
+
 
     }
 }
