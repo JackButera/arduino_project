@@ -149,6 +149,8 @@ int menu;
 int command;
 int currentMenu = 5;
 char statsBuffer[100];
+byte packetCount = 0;
+
 
 
 //checks whether or not a string contains only numbers
@@ -875,6 +877,7 @@ void alarmPacket(){
         leds[2].red = 0;
         leds[2].blue = 255;
         Udp.endPacket();
+        packetCount++;
     }
     else if (faren >= lowMinUnd && faren <= highMinUnd && alarm != 6){
         Udp.beginPacket(ipRemote, remotePort);
@@ -882,6 +885,7 @@ void alarmPacket(){
         Udp.print(F("Minor Under"));
         leds[2] = CRGB::Blue;
         Udp.endPacket();
+        packetCount++;
     }
     else if (faren >= lowCom && faren <= highCom && alarm != 7){
         Udp.beginPacket(ipRemote, remotePort);
@@ -889,6 +893,7 @@ void alarmPacket(){
         Udp.print(F("Comfortable"));
         leds[2] = CRGB::Red; //actually green
         Udp.endPacket();
+        packetCount++;
     }
     else if (faren >= lowMinOve && faren <= highMinOve && alarm != 8){
         Udp.beginPacket(ipRemote, remotePort);
@@ -898,6 +903,7 @@ void alarmPacket(){
         leds[2].red = 75;
         leds[2].blue = 0;
         Udp.endPacket();
+        packetCount++;
 
     }
     else if (faren >= majOve && alarm != 9){
@@ -906,6 +912,7 @@ void alarmPacket(){
         Udp.print(F("Major Over"));
         leds[2] = CRGB::Green; //actually red
         Udp.endPacket();
+        packetCount++;
     }
     //Udp.endPacket();
     FastLED.show();
@@ -998,9 +1005,13 @@ void historyMenu(){
     menu = 0;
 }
 
-void statsMenu(char sB[]){
+void statsMenu(char sB[], byte packs){
     lcd.clear();
     lcd.print(sB);
+    lcd.setCursor(0,1);
+    lcd.print("Packets: ");
+    lcd.print(packs);
+
     menu = 0;
 }
 
@@ -1009,7 +1020,6 @@ void settingsMenu(){
     lcd.print(F(" ^ IP/Subnet/Gateway"));
     lcd.setCursor(0,1);
     lcd.print(F(" < Erase > Temp Thresholds"));
-    
     menu = 0;
 }
 
@@ -1083,7 +1093,7 @@ void loop(){
             currentMenu = 1;
         }
         else if (menu == 2){
-            statsMenu(statsBuffer);
+            statsMenu(statsBuffer, packetCount);
             currentMenu = 2;
         }
         else if (menu == 3){
@@ -1332,6 +1342,7 @@ void loop(){
         //parses the string the user entered
         char right = '>';
         myStrncat(statsBuffer, &right, 1);
+        packetCount++;
         for(byte i = 0; i < myStrlen(buffer); i++){
             myStrncat(statsBuffer, &buffer[i], 1);
             
