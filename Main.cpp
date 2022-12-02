@@ -137,7 +137,7 @@ byte alarm = 0;
 IPAddress ipRemote(192,168,1,180);
 unsigned int remotePort = 56866;
 bool receivedPacket = false;
-
+bool thresholdSent = false;
 
 
 byte ledBlinkRed = 0b01110111; //red led blinking byte
@@ -690,14 +690,14 @@ void temp_HISTORY(){
 
     for (int i = 13; i < eeAddress; i+= 8){
         short printTemp = EEPROM[i] | (EEPROM[i+1] << 8);
-        Serial.print(F("Temp: ")); Serial.print( printTemp ); Serial.print(F(" *C ")); 
-        Serial.print(F("Humidity: ")); Serial.print( EEPROM[i+2] ); Serial.println(F(" RH%"));
-        Serial.print(F("On: ")); Serial.print(EEPROM[i+6]); Serial.print('/');
-        Serial.print(EEPROM[i+7]); Serial.print('/');
-        Serial.println(EEPROM[i+5]);
-        Serial.print(F("At: ")); Serial.print(EEPROM[i+3]); Serial.print(':');
-        Serial.println(EEPROM[i+4]);
-        Serial.println();
+        // Serial.print(F("Temp: ")); Serial.print( printTemp ); Serial.print(F(" *C ")); 
+        // Serial.print(F("Humidity: ")); Serial.print( EEPROM[i+2] ); Serial.println(F(" RH%"));
+        // Serial.print(F("On: ")); Serial.print(EEPROM[i+6]); Serial.print('/');
+        // Serial.print(EEPROM[i+7]); Serial.print('/');
+        // Serial.println(EEPROM[i+5]);
+        // Serial.print(F("At: ")); Serial.print(EEPROM[i+3]); Serial.print(':');
+        // Serial.println(EEPROM[i+4]);
+        // Serial.println();
 
         Udp.beginPacket(ipRemote, remotePort);
         Udp.print(F("Temp: ")); Udp.print( printTemp ); Udp.print(F(" *C ")); 
@@ -724,12 +724,12 @@ void clearEEPROM(){
 //prints the current time
 void current_TIME(){
     MyDateAndTime = Clock.read();
-    Serial.print(MyDateAndTime.Month); Serial.print('/');
-    Serial.print(MyDateAndTime.Day); Serial.print('/');
-    Serial.print(MyDateAndTime.Year); Serial.print(' ');
-    Serial.print(MyDateAndTime.Hour); Serial.print(':');
-    Serial.print(MyDateAndTime.Minute); Serial.print(':');
-    Serial.print(MyDateAndTime.Second); Serial.println('\n');
+    // Serial.print(MyDateAndTime.Month); Serial.print('/');
+    // Serial.print(MyDateAndTime.Day); Serial.print('/');
+    // Serial.print(MyDateAndTime.Year); Serial.print(' ');
+    // Serial.print(MyDateAndTime.Hour); Serial.print(':');
+    // Serial.print(MyDateAndTime.Minute); Serial.print(':');
+    // Serial.print(MyDateAndTime.Second); Serial.println('\n');
 
     Udp.beginPacket(ipRemote, remotePort);
     Udp.print(MyDateAndTime.Month); Udp.print('/');
@@ -863,7 +863,7 @@ void myStrcpy(char og[30], char str[30]){
     og[i] = '\0';
 }
 
-bool thresholdSent = false;
+//returns the current threshold 
 byte tempThresholdState(){
     short faren = celsiusToFarenheit(currTemp);
     if (faren <= majUnd){
@@ -884,6 +884,7 @@ byte tempThresholdState(){
 
 }
 
+//sends single alarm packet for each threshold change
 void sendAlarmPacket(byte tempState){
     if (tempState != alarm){
         Udp.beginPacket(ipRemote, remotePort);
@@ -949,7 +950,7 @@ void myStrncat(char dest[], char src[], byte length)
     }
 }
 
-
+//changes menu from home
 int changeMenu(){
     static long int timer = 0;
     int button = readButtons();
@@ -964,7 +965,7 @@ int changeMenu(){
         }
     }
 }
-
+//commands contoroller for when inside menus
 int changeCommand(){
     static long int timer = 0;
     int button = readButtons();
@@ -980,6 +981,7 @@ int changeCommand(){
     }
 }
 
+//home/starting menu
 void homeMenu(){
     lcd.clear();
     lcd.print(F("Temp: "));
@@ -992,6 +994,7 @@ void homeMenu(){
     menu = 0;
 }
 
+//history menu
 void historyMenu(){
     lcd.clear();
     int sec = 0;
@@ -1010,6 +1013,7 @@ void historyMenu(){
     menu = 0;
 }
 
+//stats menu
 void statsMenu(char sB[], byte packs){
     lcd.clear();
     lcd.print(sB);
@@ -1020,6 +1024,7 @@ void statsMenu(char sB[], byte packs){
     menu = 0;
 }
 
+//settings menu
 void settingsMenu(){
     lcd.clear();
     lcd.print(F(" ^ IP/Subnet/Gateway"));
@@ -1028,6 +1033,7 @@ void settingsMenu(){
     menu = 0;
 }
 
+//menu to confirm erasing history
 void eraseHistoryMenu(){
     lcd.clear();
     lcd.print(F("Are You Sure?"));
@@ -1036,6 +1042,7 @@ void eraseHistoryMenu(){
     menu = 0;
 }
 
+//menu to change ip
 void changeIPMenu(){
     lcd.clear();
     for (byte i = 0; i < 12; i++){
@@ -1050,6 +1057,7 @@ void changeIPMenu(){
     menu = 0;
 }
 
+//menu to change temp thresholds
 void tempThresholdMenu(){
     lcd.clear();
     lcd.print(F("<="));
@@ -1060,20 +1068,23 @@ void tempThresholdMenu(){
     lcd.print(F(">=")); lcd.print(majOve); 
     menu = 0;
 }
-
+//changes just the 100 digit place
 int replace100(int old, int dig){
     int ret = old - old%1000 + old%100 + dig*100;
     return ret;
 }
+//changes just the 10 digit place
 int replace10(int old, int dig){
     int ret = old - old%100 + old%10 + dig*10;
     return ret;
 }
+//changes just the 1 digit place
 int replace1(int old, int dig){
     int ret = old - old%10 + old%1 + dig*1;
     return ret;
 }
 
+//for menu navigation
 byte cursorI = 6;
 byte cycle = 0;
 
@@ -1375,46 +1386,6 @@ void loop(){
         {
             showTemp = false;
             switch (tokenBuffer[0]){
-                    // case t_D13:
-                    //     switch (tokenBuffer[1])
-                    //     {
-                    //         case t_ON:
-                    //             switch (tokenBuffer[2]){
-                    //                 case t_EOL:
-                    //                     //d13_goBlink = false;
-                    //                 break;
-                    //                 default:
-                    //                     showError();
-                    //                 break;
-                    //             }
-                                
-                    //         break;
-                    //         case t_OFF:
-                    //             switch (tokenBuffer[2]){
-                    //                 case t_EOL:
-                    //                     //d13_goBlink = false;
-                    //                 break;
-                    //                 default:
-                    //                     showError();
-                    //                 break;
-                    //             }
-                                
-                    //         break;
-                    //         case t_BLINK:
-                    //             switch (tokenBuffer[2]){
-                    //                 case t_EOL:
-                    //                     //d13_goBlink = true;
-                    //                 break;
-                    //                 default:
-                    //                     showError();
-                    //                 break;
-                    //             }
-                    //         break;
-                    //         default:
-                    //             showError();
-                    //         break;
-                                    
-                    //     }
                     break;
                     case t_LED:
                         switch (tokenBuffer[1])
