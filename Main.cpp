@@ -54,6 +54,8 @@ bool showTemp = false; //bool to determine whether or not to loop five second te
 
 
 
+
+
 #define MAX_ARGS 9 //max arguments for token buffer
 #define MAX_BUF 30 // max length of string buffer
 
@@ -135,7 +137,7 @@ byte second = 0;
 //UDP packet alarm info
 byte alarm = 0;
 IPAddress ipRemote(192,168,1,180);
-unsigned int remotePort = 56866;
+unsigned int remotePort = 52334;
 bool receivedPacket = false;
 bool thresholdSent = false;
 
@@ -149,7 +151,8 @@ int menu;
 int command;
 int currentMenu = 5;
 char statsBuffer[100];
-byte packetCount = 0;
+byte packetReceived = 0;
+byte packetSent = 0;
 
 
 
@@ -184,6 +187,9 @@ void setup(){
     Serial.begin(9600);
     Clock.begin();
     FastLED.addLeds<WS2812B,7>(leds, NUM_LEDS);
+    FastLED.addLeds<WS2812B,7>(leds, NUM_LEDS);
+    FastLED.addLeds<WS2812B,7>(leds, NUM_LEDS);
+    FastLED.addLeds<WS2812B,7>(leds, NUM_LEDS);
     FastLED.setBrightness(RGB_brightness);
     leds[0] = CRGB::Black;
     leds[1] = CRGB::Black;
@@ -203,6 +209,19 @@ void setup(){
 	// Turn on the blacklight and print a message.
 	lcd.backlight();
     menu = 5;
+    // EEPROM[0] = ip[0];
+    // EEPROM[1] = ip[1];
+    // EEPROM[2] = ip[2];
+    // EEPROM[3] = ip[3];
+    // EEPROM[4] = subnet[0];
+    // EEPROM[5] = subnet[1];
+    // EEPROM[6] = subnet[2];
+    // EEPROM[7] = subnet[3];
+    // EEPROM[8] = gateway[0];
+    // EEPROM[9] = gateway[1];
+    // EEPROM[10] = gateway[2];
+    // EEPROM[11] = gateway[3];
+    // EEPROM[12] = 12;  
 
     
 }
@@ -645,7 +664,7 @@ void five_SECOND_TEMP(){
         Udp.print((float)currHumid); Udp.print(F(" RH%"));
         Udp.endPacket();
         timer= millis()+5000;
-        packetCount++;
+        packetSent++;
         
 
     }
@@ -708,7 +727,7 @@ void temp_HISTORY(){
         Udp.print(F(" At: ")); Udp.print(EEPROM[i+3]); Udp.print(':');
         Udp.print(EEPROM[i+4]);
         Udp.endPacket();
-        packetCount++;
+        packetSent++;
     }
 }
 
@@ -917,7 +936,7 @@ void sendAlarmPacket(byte tempState){
             Udp.print(F("Major Over"));
             leds[2] = CRGB::Green; //actually red
         }
-        packetCount++;
+        packetSent++;
         Udp.endPacket();
         FastLED.show();
     }
@@ -995,32 +1014,31 @@ void homeMenu(){
 }
 
 //history menu
-void historyMenu(){
+void historyMenu(byte log){
     lcd.clear();
-    int sec = 0;
-    for (int i = 13; i < eeAddress; i+= 8){
-        short printTemp = EEPROM[i] | (EEPROM[i+1] << 8);
-        lcd.setCursor(sec, 0);
-        lcd.print(printTemp); lcd.print(F(" *C ")); lcd.print(short(EEPROM[i+2])); lcd.print(F(" RH% "));
-        lcd.setCursor(sec, 1);
-        lcd.print(EEPROM[i+6]); lcd.print('/');
-        lcd.print(EEPROM[i+7]); lcd.print('/');
-        lcd.print(EEPROM[i+5]); lcd.print(' ');
-        lcd.print(EEPROM[i+3]); lcd.print(':');
-        lcd.print(EEPROM[i+4]); 
-        sec += 14;
-    }
+    //int sec = 0;
+    short printTemp = EEPROM[log] | (EEPROM[log+1] << 8);
+    lcd.setCursor(0, 0);
+    lcd.print(printTemp); lcd.print(F(" *C ")); lcd.print(short(EEPROM[log+2])); lcd.print(F(" RH% "));
+    lcd.setCursor(0, 1);
+    lcd.print(EEPROM[log+6]); lcd.print('/');
+    lcd.print(EEPROM[log+7]); lcd.print('/');
+    lcd.print(EEPROM[log+5]); lcd.print(' ');
+    lcd.print(EEPROM[log+3]); lcd.print(':');
+    lcd.print(EEPROM[log+4]); 
+    //sec += 14;
+    
     menu = 0;
 }
 
 //stats menu
-void statsMenu(char sB[], byte packs){
+void statsMenu(byte sent, byte received){
     lcd.clear();
-    lcd.print(sB);
+    lcd.print("Sent: ");
+    lcd.print(sent);
     lcd.setCursor(0,1);
-    lcd.print("Packets: ");
-    lcd.print(packs);
-
+    lcd.print("Received: ");
+    lcd.print(received);
     menu = 0;
 }
 
@@ -1087,7 +1105,7 @@ int replace1(int old, int dig){
 //for menu navigation
 byte cursorI = 6;
 byte cycle = 0;
-
+byte history = 13;
 
 
 //main loop
@@ -1103,13 +1121,14 @@ void loop(){
         changeMenu();
         if (menu == 5){
             homeMenu();
+            cursorI = 6;
         }
         else if (menu == 1){
-            historyMenu();
+            historyMenu(13);
             currentMenu = 1;
         }
         else if (menu == 2){
-            statsMenu(statsBuffer, packetCount);
+            statsMenu(packetSent, packetReceived);
             currentMenu = 2;
         }
         else if (menu == 3){
@@ -1121,10 +1140,15 @@ void loop(){
         changeCommand();
         lcd.noCursor();
         if (command == 1){
-            lcd.scrollDisplayRight();
+            //lcd.scrollDisplayRight();
         }
         else if (command == 4){
-            lcd.scrollDisplayLeft();
+            history += 8;
+            if (history > eeAddress){
+                history = 13;
+            }
+            historyMenu(history);
+            //lcd.scrollDisplayLeft();
         }
         else if (command == 5){
             currentMenu = 5;
@@ -1254,7 +1278,6 @@ void loop(){
             cycle = 1;
         }
         else if (command == 2){
-            if (cursorI )
             lcd.noCursor();
             lcd.setCursor(cursorI, 0);
             lcd.print(cycle);
@@ -1360,7 +1383,7 @@ void loop(){
         //parses the string the user entered
         char right = '>';
         myStrncat(statsBuffer, &right, 1);
-        packetCount++;
+        packetReceived++;
         for(byte i = 0; i < myStrlen(buffer); i++){
             myStrncat(statsBuffer, &buffer[i], 1);
             
