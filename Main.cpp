@@ -154,7 +154,10 @@ char statsBuffer[100];
 byte packetReceived = 0;
 byte packetSent = 0;
 
-
+//for menu navigation
+byte cursorI = 6;
+byte cycle = 0;
+byte history = 13;
 
 //checks whether or not a string contains only numbers
 bool isValidNumber(char str[5]){
@@ -209,20 +212,6 @@ void setup(){
 	// Turn on the blacklight and print a message.
 	lcd.backlight();
     menu = 5;
-    // EEPROM[0] = ip[0];
-    // EEPROM[1] = ip[1];
-    // EEPROM[2] = ip[2];
-    // EEPROM[3] = ip[3];
-    // EEPROM[4] = subnet[0];
-    // EEPROM[5] = subnet[1];
-    // EEPROM[6] = subnet[2];
-    // EEPROM[7] = subnet[3];
-    // EEPROM[8] = gateway[0];
-    // EEPROM[9] = gateway[1];
-    // EEPROM[10] = gateway[2];
-    // EEPROM[11] = gateway[3];
-    // EEPROM[12] = 12;  
-
     
 }
 
@@ -1016,7 +1005,6 @@ void homeMenu(){
 //history menu
 void historyMenu(byte log){
     lcd.clear();
-    //int sec = 0;
     short printTemp = EEPROM[log] | (EEPROM[log+1] << 8);
     lcd.setCursor(0, 0);
     lcd.print(printTemp); lcd.print(F(" *C ")); lcd.print(short(EEPROM[log+2])); lcd.print(F(" RH% "));
@@ -1026,7 +1014,6 @@ void historyMenu(byte log){
     lcd.print(EEPROM[log+5]); lcd.print(' ');
     lcd.print(EEPROM[log+3]); lcd.print(':');
     lcd.print(EEPROM[log+4]); 
-    //sec += 14;
     
     menu = 0;
 }
@@ -1102,10 +1089,7 @@ int replace1(int old, int dig){
     return ret;
 }
 
-//for menu navigation
-byte cursorI = 6;
-byte cycle = 0;
-byte history = 13;
+
 
 
 //main loop
@@ -1116,7 +1100,6 @@ void loop(){
     RGB_BLINK();
     led_BLINK2(); //start LED blinking
     led_ALTERNATE(); //start LED ALTERNATEping colors
-    //menuSystem();
     if (currentMenu == 5){ //home menu
         changeMenu();
         if (menu == 5){
@@ -1140,7 +1123,11 @@ void loop(){
         changeCommand();
         lcd.noCursor();
         if (command == 1){
-            //lcd.scrollDisplayRight();
+            history -= 8;
+            if (history < 13){
+                history = eeAddress-7;
+            }
+            historyMenu(history);
         }
         else if (command == 4){
             history += 8;
@@ -1148,7 +1135,6 @@ void loop(){
                 history = 13;
             }
             historyMenu(history);
-            //lcd.scrollDisplayLeft();
         }
         else if (command == 5){
             currentMenu = 5;
@@ -1348,7 +1334,6 @@ void loop(){
         leds[1] = CRGB::Red;
         FastLED.show();
         receivePackets();
-        //alarmPacket();
         sendAlarmPacket(tempThresholdState());
 
         
@@ -1524,28 +1509,28 @@ void loop(){
                                     // Serial.println(F("->HELP"));
                                     // Serial.println();
 
-                                    // Udp.beginPacket(ipRemote, remotePort);
-                                    // Udp.print(F("The available commands are: "));
-                                    // Udp.print(F("->LED GREEN"));
-                                    // Udp.print(F("->LED RED"));
-                                    // Udp.print(F("->LED OFF"));
-                                    // Udp.print(F("->LED BLINK"));
-                                    // Udp.print(F("->LED ALTERNATE"));
-                                    // Udp.print(F("->BLINK <number>"));
-                                    // Udp.print(F("->STATUS LEDS"));
-                                    // Udp.print(F("->CURRENT TIME"));
-                                    // Udp.print(F("->SET TIME <month> <day> <year> <hour> <minute> <second>"));
-                                    // Udp.print(F("->CURRENT TEMP"));
-                                    // Udp.print(F("->TEMP HISTORY"));
-                                    // Udp.print(F("->TEMP HIGH LOW"));
-                                    // Udp.print(F("->ADD <number1> <number2>"));
-                                    // Udp.print(F("->RGB <red> <green> <blue>"));
-                                    // Udp.print(F("->RGB ON"));
-                                    // Udp.print(F("->RGB OFF"));
-                                    // Udp.print(F("->RGB BLINK"));
-                                    // Udp.print(F("->VERSION"));
-                                    // Udp.print(F("->HELP"));
-                                    // Udp.endPacket();
+                                    Udp.beginPacket(ipRemote, remotePort);
+                                    Udp.print(F("The available commands are: "));
+                                    Udp.print(F("->LED GREEN"));
+                                    Udp.print(F("->LED RED"));
+                                    Udp.print(F("->LED OFF"));
+                                    Udp.print(F("->LED BLINK"));
+                                    Udp.print(F("->LED ALTERNATE"));
+                                    Udp.print(F("->BLINK <number>"));
+                                    Udp.print(F("->STATUS LEDS"));
+                                    Udp.print(F("->CURRENT TIME"));
+                                    Udp.print(F("->SET TIME <month> <day> <year> <hour> <minute> <second>"));
+                                    Udp.print(F("->CURRENT TEMP"));
+                                    Udp.print(F("->TEMP HISTORY"));
+                                    Udp.print(F("->TEMP HIGH LOW"));
+                                    Udp.print(F("->ADD <number1> <number2>"));
+                                    Udp.print(F("->RGB <red> <green> <blue>"));
+                                    Udp.print(F("->RGB ON"));
+                                    Udp.print(F("->RGB OFF"));
+                                    Udp.print(F("->RGB BLINK"));
+                                    Udp.print(F("->VERSION"));
+                                    Udp.print(F("->HELP"));
+                                    Udp.endPacket();
 
                                 break;
                                 default:
