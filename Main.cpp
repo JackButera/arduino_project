@@ -19,7 +19,8 @@
 byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
 };
-IPAddress ip(192,168,1,177);
+
+IPAddress ip(EEPROM[0],EEPROM[1],EEPROM[2],EEPROM[3]);
 unsigned int localPort = 8888;      // local port to listen on
 char packetBuffer[30];  // buffer to hold incoming packet,
 EthernetUDP Udp;
@@ -212,6 +213,7 @@ void setup(){
 	// Turn on the blacklight and print a message.
 	lcd.backlight();
     menu = 5;
+    
     
 }
 
@@ -1089,6 +1091,10 @@ int replace1(int old, int dig){
     return ret;
 }
 
+void changeIP(byte cursorIndex, byte eepromIndex, byte newNum){
+    
+}
+
 
 
 
@@ -1124,7 +1130,10 @@ void loop(){
         lcd.noCursor();
         if (command == 1){
             history -= 8;
-            if (history < 13){
+            if (eeAddress == 12){
+                history = 13;
+            }
+            else if (history < 13){
                 history = eeAddress-7;
             }
             historyMenu(history);
@@ -1210,27 +1219,32 @@ void loop(){
             
         }
         else if (command == 2){
-            lcd.noCursor();
-            lcd.setCursor(cursorI, 0);
-            lcd.print(cycle);
-            if (cursorI == 0){EEPROM[0] = replace100(EEPROM[0], cycle);}
-            else if (cursorI == 1){EEPROM[0] = replace10(EEPROM[0], cycle);}
-            else if (cursorI == 2){EEPROM[0] = replace1(EEPROM[0], cycle);}
-        
-            else if (cursorI == 4){EEPROM[1] = replace100(EEPROM[1], cycle);}
-            else if (cursorI == 5){EEPROM[1] = replace10(EEPROM[1], cycle);}
-            else if (cursorI == 6){EEPROM[1] = replace1(EEPROM[1], cycle);}
+            unsigned char newVal;
+            if (cursorI != 3 && cursorI != 7 && cursorI != 9){
+                
+                if (cursorI == 0){EEPROM[0] = replace100(EEPROM[0], cycle);}
+                else if (cursorI == 1){EEPROM[0] = replace10(EEPROM[0], cycle);}
+                else if (cursorI == 2){EEPROM[0] = replace1(EEPROM[0], cycle);}
             
-            else if (cursorI == 8){EEPROM[2] = replace1(EEPROM[2], cycle);}
+                else if (cursorI == 4){EEPROM[1] = replace100(EEPROM[1], cycle);}
+                else if (cursorI == 5){EEPROM[1] = replace10(EEPROM[1], cycle);}
+                else if (cursorI == 6){EEPROM[1] = replace1(EEPROM[1], cycle);}
+                
+                else if (cursorI == 8){EEPROM[2] = replace1(EEPROM[2], cycle);}
 
-            else if (cursorI == 10){EEPROM[3] = replace100(EEPROM[3], cycle);}
-            else if (cursorI == 11){EEPROM[3] = replace10(EEPROM[3], cycle);}
-            else if (cursorI == 12){EEPROM[3] = replace1(EEPROM[3], cycle);}
-            
-            cycle++;
-            if (cycle == 10){
-                cycle = 0;
+                else if (cursorI == 10){EEPROM[3] = replace100(EEPROM[3], cycle);}
+                else if (cursorI == 11){EEPROM[3] = replace10(EEPROM[3], cycle);}
+                else if (cursorI == 12){EEPROM[3] = replace1(EEPROM[3], cycle);}
+                lcd.setCursor(cursorI, 0);
+                lcd.print(cycle);
+                lcd.setCursor(cursorI, 1);
+
+                cycle++;
+                if (cycle == 10){
+                    cycle = 0;
+                }
             }
+                
         }
         else if (command == 3){
             lcd.setCursor(cursorI, 1);
@@ -1264,9 +1278,9 @@ void loop(){
             cycle = 1;
         }
         else if (command == 2){
-            lcd.noCursor();
             lcd.setCursor(cursorI, 0);
             lcd.print(cycle);
+            lcd.setCursor(cursorI, 1);
             if (cursorI == 2){majUnd = replace10(majUnd, cycle);}
             else if (cursorI == 3){majUnd = replace1(majUnd, cycle);}
         
