@@ -1016,8 +1016,11 @@ bool checkIP(short newNum){
 //         }
 //     }
 // }
-
-
+void editLCD(byte cursor, byte val){
+    lcd.setCursor(cursor, 0);
+    lcd.print(val);
+    lcd.setCursor(cursor, 1);
+}
 
 //main loop
 void loop(){
@@ -1201,6 +1204,8 @@ void loop(){
     }
     if (currentMenu == 8){ //change temp thresholds
         changeCommand();
+        lcd.setCursor(cursorI, 1);
+        lcd.cursor();
         if (command == 1){
             lcd.scrollDisplayRight();
             if (cursorI == 0){
@@ -1211,69 +1216,159 @@ void loop(){
             cycle = 1;
         }
         else if (command == 2){
-            
             short newVal;
             bool shouldChange = false;
-            if (cursorI < 4 && cursorI > 1){
-                if (cursorI == 2){thresholdArray[0] = replace10(thresholdArray[0], cycle);}
-                else if (cursorI == 3){thresholdArray[0] = replace1(thresholdArray[0], cycle);}
-                shouldChange = true;
+            byte plus;
+            if (cursorI == 2){
+                plus = ((thresholdArray[0]%100)/10)+1;
+                if (plus == 10){plus = 0;}
+                newVal = replace10(thresholdArray[0], plus);
+                if (newVal < thresholdArray[1]){
+                    thresholdArray[0] = newVal;
+                    editLCD(cursorI, plus);
+                }
+                
+            }
+            else if (cursorI == 3){
+                plus = (thresholdArray[0]%10)+1;
+                if (plus == 10){plus = 0;}
+                newVal = replace1(thresholdArray[0], plus);
+                if (newVal < thresholdArray[1]){
+                    thresholdArray[0] = newVal;
+                    editLCD(cursorI, plus);
+                }
             }
             
-            else if (cursorI < 10){
-                if (cursorI < 7){
-                    if (cursorI == 5){thresholdArray[1] = replace10(thresholdArray[1], cycle);}
-                    else if (cursorI == 6){thresholdArray[1] = replace1(thresholdArray[1], cycle);}
-                    shouldChange = true;
+            
+            else if (cursorI == 5){
+                plus = ((thresholdArray[1]%100)/10)+1;
+                if (plus == 10){plus = 0;}
+                newVal = replace10(thresholdArray[1], plus);
+                if (newVal < thresholdArray[2]){
+                    thresholdArray[1] = newVal;
+                    editLCD(cursorI, plus);
                 }
-                else{
-                    if (cursorI == 8){thresholdArray[2] = replace10(thresholdArray[2], cycle);}
-                    else if (cursorI == 9){thresholdArray[2] = replace1(thresholdArray[2], cycle);}
-                    shouldChange = true;
-                } 
             }
-
-            else if (cursorI < 16){
-                if (cursorI < 13){
-                    if (cursorI == 11){thresholdArray[3] = replace10(thresholdArray[3], cycle);}
-                    else if (cursorI == 12){thresholdArray[3] = replace1(thresholdArray[3], cycle);}
-                    shouldChange = true;
+            else if (cursorI == 6){
+                plus = (thresholdArray[1]%10)+1;
+                if (plus == 10){plus = 0;}
+                newVal = replace1(thresholdArray[1], plus);
+                if (newVal < thresholdArray[2]){
+                    thresholdArray[1] = newVal;
+                    editLCD(cursorI, plus);
                 }
-                else{
-                    if (cursorI == 14){thresholdArray[4] = replace10(thresholdArray[4], cycle);}
-                    else if (cursorI == 15){thresholdArray[4] = replace1(thresholdArray[4], cycle);}
-                    shouldChange = true;
-                } 
             }
-
-            else if (cursorI < 22){
-                if (cursorI < 19){
-                    if (cursorI == 17){thresholdArray[5] = replace10(thresholdArray[5], cycle);}
-                    else if (cursorI == 18){thresholdArray[5] = replace1(thresholdArray[5], cycle);}
-                    shouldChange = true;
+        
+            else if (cursorI == 8){
+                plus = ((thresholdArray[2]%100)/10)+1;
+                if (plus == 10){plus = 0;}
+                newVal = replace10(thresholdArray[2], plus);
+                if (newVal < thresholdArray[3]){
+                    thresholdArray[2] = newVal;
+                    editLCD(cursorI, plus);
                 }
-                else{
-                    if (cursorI == 20){thresholdArray[6] = replace10(thresholdArray[6], cycle);}
-                    else if (cursorI == 21){thresholdArray[6] = replace1(thresholdArray[6], cycle);}
-                    shouldChange = true;
-                } 
             }
-
-            else if (cursorI < 27){
-                if (cursorI == 25){thresholdArray[7] = replace10(thresholdArray[7], cycle);}
-                else if (cursorI == 26){thresholdArray[7] = replace1(thresholdArray[7], cycle);}
-                shouldChange = true;
-            }
-
-            if (shouldChange){
-                lcd.setCursor(cursorI, 0);
-                lcd.print(cycle);
-                lcd.setCursor(cursorI, 1);
-                
-                cycle++;
-                if (cycle == 10){
-                    cycle = 0;
+            else if (cursorI == 9){
+                plus = (thresholdArray[2]%10)+1;
+                if (plus == 10){plus = 0;}
+                newVal = replace1(thresholdArray[2], plus);
+                if (newVal < thresholdArray[3]){
+                    thresholdArray[2] = newVal;
+                    editLCD(cursorI, plus);
                 }
+            }
+        
+    
+
+            else if (cursorI == 11){
+                plus = ((thresholdArray[3]%100)/10)+1;
+                if (plus == 10){plus = 0;}
+                newVal = replace10(thresholdArray[3], plus);
+                if (newVal < thresholdArray[4]){
+                    thresholdArray[3] = newVal;
+                    editLCD(cursorI, plus);
+                }
+            }
+            else if (cursorI == 12){
+                plus = (thresholdArray[3]%10)+1;
+                if (plus == 10){plus = 0;}
+                newVal = replace1(thresholdArray[3], plus);
+                if (newVal < thresholdArray[4]){
+                    thresholdArray[3] = newVal;
+                    editLCD(cursorI, plus);
+                }
+            }
+        
+            else if (cursorI == 14){
+                plus = ((thresholdArray[4]%100)/10)+1;
+                if (plus == 10){plus = 0;}
+                newVal = replace10(thresholdArray[4], plus);
+                if (newVal < thresholdArray[5]){
+                    thresholdArray[4] = newVal;
+                    editLCD(cursorI, plus);
+                }
+            }
+            else if (cursorI == 15){
+                plus = (thresholdArray[4]%10)+1;
+                if (plus == 10){plus = 0;}
+                newVal = replace1(thresholdArray[4], plus);
+                if (newVal < thresholdArray[5]){
+                    thresholdArray[4] = newVal;
+                    editLCD(cursorI, plus);
+                }
+            }
+        
+    
+
+            else if (cursorI == 17){
+                plus = ((thresholdArray[5]%100)/10)+1;
+                if (plus == 10){plus = 0;}
+                newVal = replace10(thresholdArray[5], plus);
+                if (newVal < thresholdArray[6]){
+                    thresholdArray[5] = newVal;
+                    editLCD(cursorI, plus);
+                }
+            }
+            else if (cursorI == 18){
+                plus = (thresholdArray[5]%10)+1;
+                if (plus == 10){plus = 0;}
+                newVal = replace1(thresholdArray[5], plus);
+                if (newVal < thresholdArray[6]){
+                    thresholdArray[5] = newVal;
+                    editLCD(cursorI, plus);
+                }
+            }
+        
+            else if (cursorI == 20){
+                plus = ((thresholdArray[6]%100)/10)+1;
+                if (plus == 10){plus = 0;}
+                newVal = replace10(thresholdArray[6], plus);
+                if (newVal < thresholdArray[7]){
+                    thresholdArray[6] = newVal;
+                    editLCD(cursorI, plus);
+                }
+            }
+            else if (cursorI == 21){
+                plus = (thresholdArray[6]%10)+1;
+                if (plus == 10){plus = 0;}
+                newVal = replace1(thresholdArray[6], plus);
+                if (newVal < thresholdArray[7]){
+                    thresholdArray[6] = newVal;
+                    editLCD(cursorI, plus);
+                }
+            }
+        
+            else if (cursorI == 25){
+                plus = ((thresholdArray[7]%100)/10)+1;
+                if (plus == 10){plus = 0;}
+                thresholdArray[7] = replace10(thresholdArray[7], plus);
+                editLCD(cursorI, plus);
+            }
+            else if (cursorI == 26){
+                plus = (thresholdArray[7]%10)+1;
+                if (plus == 10){plus = 0;}
+                thresholdArray[7] = replace1(thresholdArray[7], plus);
+                editLCD(cursorI, plus);
             }
             
         }
