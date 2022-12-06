@@ -54,9 +54,6 @@ float currHumid; //holds current humidity reading
 bool showTemp = false; //bool to determine whether or not to loop five second temp
 
 
-
-
-
 #define MAX_ARGS 9 //max arguments for token buffer
 #define MAX_BUF 30 // max length of string buffer
 
@@ -989,10 +986,13 @@ int replace1(int old, int dig){
     return ret;
 }
 
-void changeIP(byte cursorIndex, byte eepromIndex, byte newNum){
-
+bool checkIP(short newNum){
+    if (newNum <= 255){
+        return true;
+    }
+    return false;
 }
-
+    
 
 
 
@@ -1116,30 +1116,67 @@ void loop(){
             
         }
         else if (command == 2){
-            unsigned char newVal;
+            short newVal;
             if (cursorI != 3 && cursorI != 7 && cursorI != 9){
-                
-                if (cursorI == 0){EEPROM[0] = replace100(EEPROM[0], cycle);}
-                else if (cursorI == 1){EEPROM[0] = replace10(EEPROM[0], cycle);}
-                else if (cursorI == 2){EEPROM[0] = replace1(EEPROM[0], cycle);}
-            
-                else if (cursorI == 4){EEPROM[1] = replace100(EEPROM[1], cycle);}
-                else if (cursorI == 5){EEPROM[1] = replace10(EEPROM[1], cycle);}
-                else if (cursorI == 6){EEPROM[1] = replace1(EEPROM[1], cycle);}
-                
-                else if (cursorI == 8){EEPROM[2] = replace1(EEPROM[2], cycle);}
-
-                else if (cursorI == 10){EEPROM[3] = replace100(EEPROM[3], cycle);}
-                else if (cursorI == 11){EEPROM[3] = replace10(EEPROM[3], cycle);}
-                else if (cursorI == 12){EEPROM[3] = replace1(EEPROM[3], cycle);}
-                lcd.setCursor(cursorI, 0);
-                lcd.print(cycle);
-                lcd.setCursor(cursorI, 1);
-
-                cycle++;
-                if (cycle == 10){
-                    cycle = 0;
+                //ip 1
+                if (cursorI == 0){
+                    newVal = replace100(EEPROM[0], cycle);
+                    if (checkIP(newVal)){EEPROM[0] = newVal;}
                 }
+                else if (cursorI == 1){
+                    newVal = replace10(EEPROM[0], cycle);
+                    if (checkIP(newVal)){EEPROM[0] = newVal;}
+                }
+                else if (cursorI == 2){
+                    newVal = replace1(EEPROM[0], cycle);
+                    if (checkIP(newVal)){EEPROM[0] = newVal;}
+                }
+                //ip 2
+                else if (cursorI == 4){
+                    newVal = replace100(EEPROM[1], cycle);
+                    if (checkIP(newVal)){EEPROM[1] = newVal;}
+                }
+                else if (cursorI == 5){
+                    newVal = replace10(EEPROM[1], cycle);
+                    if (checkIP(newVal)){EEPROM[1] = newVal;}
+                }
+                else if (cursorI == 6){
+                    newVal = replace1(EEPROM[1], cycle);
+                    if (checkIP(newVal)){EEPROM[1] = newVal;}
+                }
+                
+                //ip 3
+                else if (cursorI == 8){
+                    newVal = replace1(EEPROM[2], cycle);
+                    if (checkIP(newVal)){EEPROM[2] = newVal;}
+        
+                }
+
+                //ip 4
+                else if (cursorI == 10){
+                    newVal = replace100(EEPROM[3], cycle);
+                    if (checkIP(newVal)){EEPROM[3] = newVal;}
+                }
+                else if (cursorI == 11){
+                    newVal = replace10(EEPROM[3], cycle);
+                    if (checkIP(newVal)){EEPROM[3] = newVal;}
+                }
+                else if (cursorI == 12){
+                    newVal = replace1(EEPROM[3], cycle);
+                    if (checkIP(newVal)){EEPROM[3] = newVal;}
+                }
+
+                if (checkIP(newVal)){
+                    lcd.setCursor(cursorI, 0);
+                    lcd.print(cycle);
+                    lcd.setCursor(cursorI, 1);
+                    cycle++;
+                    if (cycle == 10){
+                        cycle = 0;
+                    }
+                }
+
+                
             }
                 
         }
