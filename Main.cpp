@@ -157,21 +157,6 @@ byte cursorI = 6;
 byte cycle = 0;
 byte history = 13;
 
-//checks whether or not a string contains only numbers
-bool isValidNumber(char str[5]){
-    //bool ret = 0;
-    for(byte i=0;i<5;i++)
-    {
-        if(isDigit(str[i])) return true;
-    }
-    return false;
-}
-
-//initial prompt when program is run
-void introPrompt(){
-    Serial.println(F(">Welcome to Arduino Command Line Interpreter, enter 'HELP' for list of commands!\n"));
-}
-
 byte majUnd = 60;
 byte lowMinUnd = 61;
 byte highMinUnd = 70;
@@ -180,6 +165,15 @@ byte highCom = 80;
 byte lowMinOve = 81;
 byte highMinOve = 90;
 byte majOve = 91;
+
+byte thresholdArray[] = {60, 61, 70, 71, 80, 81, 90, 91};
+
+//initial prompt when program is run
+void introPrompt(){
+    Serial.println(F(">Welcome to Arduino Command Line Interpreter, enter 'HELP' for list of commands!\n"));
+}
+
+
 
 //setup function
 void setup(){  
@@ -214,7 +208,15 @@ void setup(){
     
 }
 
-
+//checks whether or not a string contains only numbers
+bool isValidNumber(char str[5]){
+    //bool ret = 0;
+    for(byte i=0;i<5;i++)
+    {
+        if(isDigit(str[i])) return true;
+    }
+    return false;
+}
 
 //clears the parsed string for next set of input
 void clearParsedString(char arr[MAX_ARGS][MAX_BUF]){
@@ -771,22 +773,21 @@ void myStrcpy(char og[30], char str[30]){
 //returns the current threshold 
 byte tempThresholdState(){
     short faren = celsiusToFarenheit(currTemp);
-    if (faren <= majUnd){
+    if (faren <= thresholdArray[0]){
         return 5;
     }
-    else if(faren >= lowMinUnd && faren <= highMinUnd){
+    else if(faren >= thresholdArray[1] && faren <= thresholdArray[2]){
         return 6;
     }
-    else if(faren >= lowCom && faren <= highCom){
+    else if(faren >= thresholdArray[3] && faren <= thresholdArray[4]){
         return 7;
     }
-    else if(faren >= lowMinOve && faren <= highMinOve){
+    else if(faren >= thresholdArray[5] && faren <= thresholdArray[6]){
         return 8;
     }
-    else if(faren >= majOve){
+    else if(faren >= thresholdArray[7]){
         return 9;
     }
-
 }
 
 //sends single alarm packet for each threshold change
@@ -963,11 +964,11 @@ void changeIPMenu(){
 void tempThresholdMenu(){
     lcd.clear();
     lcd.print(F("<="));
-    lcd.print(majUnd); lcd.print(' ');
-    lcd.print(lowMinUnd); lcd.print('-'); lcd.print(highMinUnd); lcd.print(' ');
-    lcd.print(lowCom); lcd.print('-'); lcd.print(highCom); lcd.print(' ');
-    lcd.print(lowMinOve); lcd.print('-'); lcd.print(highMinOve); lcd.print(' ');
-    lcd.print(F(">=")); lcd.print(majOve); 
+    lcd.print(thresholdArray[0]); lcd.print(' ');
+    lcd.print(thresholdArray[1]); lcd.print('-'); lcd.print(thresholdArray[2]); lcd.print(' ');
+    lcd.print(thresholdArray[3]); lcd.print('-'); lcd.print(thresholdArray[4]); lcd.print(' ');
+    lcd.print(thresholdArray[5]); lcd.print('-'); lcd.print(thresholdArray[6]); lcd.print(' ');
+    lcd.print(F(">=")); lcd.print(thresholdArray[7]); 
     menu = 0;
 }
 //changes just the 100 digit place
@@ -992,7 +993,21 @@ bool checkIP(short newNum){
     }
     return false;
 }
-    
+
+bool checkThreshold(short newNum, byte index){
+    if (index == 0 && newNum < thresholdArray[1]){
+        return true;
+    }
+    else if (index == 7 && newNum > thresholdArray[6]){
+        return true;
+    }
+    else if (index > 0 && index < 7){
+        if (newNum < thresholdArray[index+1] && newNum > thresholdArray[index-1]){
+            return true;
+        }
+    }
+    return false;
+}
 
 
 
@@ -1104,7 +1119,6 @@ void loop(){
     }
     if (currentMenu == 7){ //change ip menu
         changeCommand();
-        
         if (command == 1){
             lcd.scrollDisplayRight();
             if (cursorI == 0){
@@ -1116,68 +1130,45 @@ void loop(){
             
         }
         else if (command == 2){
-            short newVal;
-            if (cursorI != 3 && cursorI != 7 && cursorI != 9){
-                //ip 1
-                if (cursorI == 0){
-                    newVal = replace100(EEPROM[0], cycle);
-                    if (checkIP(newVal)){EEPROM[0] = newVal;}
-                }
-                else if (cursorI == 1){
-                    newVal = replace10(EEPROM[0], cycle);
-                    if (checkIP(newVal)){EEPROM[0] = newVal;}
-                }
-                else if (cursorI == 2){
-                    newVal = replace1(EEPROM[0], cycle);
-                    if (checkIP(newVal)){EEPROM[0] = newVal;}
-                }
-                //ip 2
-                else if (cursorI == 4){
-                    newVal = replace100(EEPROM[1], cycle);
-                    if (checkIP(newVal)){EEPROM[1] = newVal;}
-                }
-                else if (cursorI == 5){
-                    newVal = replace10(EEPROM[1], cycle);
-                    if (checkIP(newVal)){EEPROM[1] = newVal;}
-                }
-                else if (cursorI == 6){
-                    newVal = replace1(EEPROM[1], cycle);
-                    if (checkIP(newVal)){EEPROM[1] = newVal;}
-                }
-                
-                //ip 3
-                else if (cursorI == 8){
-                    newVal = replace1(EEPROM[2], cycle);
-                    if (checkIP(newVal)){EEPROM[2] = newVal;}
-        
-                }
-
-                //ip 4
-                else if (cursorI == 10){
-                    newVal = replace100(EEPROM[3], cycle);
-                    if (checkIP(newVal)){EEPROM[3] = newVal;}
-                }
-                else if (cursorI == 11){
-                    newVal = replace10(EEPROM[3], cycle);
-                    if (checkIP(newVal)){EEPROM[3] = newVal;}
-                }
-                else if (cursorI == 12){
-                    newVal = replace1(EEPROM[3], cycle);
-                    if (checkIP(newVal)){EEPROM[3] = newVal;}
-                }
-
-                if (checkIP(newVal)){
-                    lcd.setCursor(cursorI, 0);
-                    lcd.print(cycle);
-                    lcd.setCursor(cursorI, 1);
-                    cycle++;
-                    if (cycle == 10){
-                        cycle = 0;
-                    }
-                }
-
-                
+            short newVal = 300;
+            if (cursorI < 3){//ip 1
+                if (cursorI == 0){newVal = replace100(EEPROM[0], cycle);}
+                else if (cursorI == 1){newVal = replace10(EEPROM[0], cycle);}
+                else if (cursorI == 2){newVal = replace1(EEPROM[0], cycle);}
+                if (checkIP(newVal)){EEPROM[0] = newVal;}
             }
+
+            else if (cursorI < 7){//ip 2
+                if (cursorI == 4){newVal = replace100(EEPROM[1], cycle);}
+                else if (cursorI == 5){newVal = replace10(EEPROM[1], cycle);}
+                else if (cursorI == 6){newVal = replace1(EEPROM[1], cycle);}
+                if (checkIP(newVal)){EEPROM[1] = newVal;}
+            }
+            
+            else if (cursorI == 8){//ip 3
+                newVal = replace1(EEPROM[2], cycle);
+                if (checkIP(newVal)){EEPROM[2] = newVal;}
+            }
+
+            else if (cursorI < 13){//ip 4
+                if (cursorI == 10){newVal = replace100(EEPROM[3], cycle);}
+                else if (cursorI == 11){newVal = replace10(EEPROM[3], cycle);}
+                else if (cursorI == 12){newVal = replace1(EEPROM[3], cycle);}
+                if (checkIP(newVal)){EEPROM[3] = newVal;}
+            }
+
+            if (checkIP(newVal)){
+                lcd.setCursor(cursorI, 0);
+                lcd.print(cycle);
+                lcd.setCursor(cursorI, 1);
+                cycle++;
+                if (cycle == 10){
+                    cycle = 0;
+                }
+            }
+
+                
+
                 
         }
         else if (command == 3){
@@ -1212,37 +1203,71 @@ void loop(){
             cycle = 1;
         }
         else if (command == 2){
-            lcd.setCursor(cursorI, 0);
-            lcd.print(cycle);
-            lcd.setCursor(cursorI, 1);
-            if (cursorI == 2){majUnd = replace10(majUnd, cycle);}
-            else if (cursorI == 3){majUnd = replace1(majUnd, cycle);}
-        
-            else if (cursorI == 5){lowMinUnd = replace10(lowMinUnd, cycle);}
-            else if (cursorI == 6){lowMinUnd = replace1(lowMinUnd, cycle);} 
-            else if (cursorI == 8){highMinUnd = replace10(highMinUnd, cycle);}
-            else if (cursorI == 9){highMinUnd = replace1(highMinUnd, cycle);} 
-
-        
-            else if (cursorI == 11){lowCom = replace10(lowCom, cycle);}
-            else if (cursorI == 12){lowCom = replace1(lowCom, cycle);} 
-            else if (cursorI == 14){highCom = replace10(highCom, cycle);}
-            else if (cursorI == 15){highCom = replace1(highCom, cycle);} 
             
-        
-            else if (cursorI == 17){lowMinOve = replace10(lowMinOve, cycle);}
-            else if (cursorI == 18){lowMinOve = replace1(lowMinOve, cycle);} 
-            else if (cursorI == 20){highMinOve = replace10(highMinOve, cycle);}
-            else if (cursorI == 21){highMinOve = replace1(highMinOve, cycle);} 
-            
-        
-            else if (cursorI == 25){majOve = replace10(majOve, cycle);}
-            else if (cursorI == 26){majOve = replace1(majOve, cycle);}
-            
-            cycle++;
-            if (cycle == 10){
-                cycle = 0;
+            short newVal;
+            bool shouldChange = false;
+            if (cursorI < 4 && cursorI > 1){
+                if (cursorI == 2){newVal = replace10(thresholdArray[0], cycle);}
+                else if (cursorI == 3){newVal = replace1(thresholdArray[0], cycle);}
+                if (checkThreshold(newVal, 0)){thresholdArray[0] = newVal; shouldChange = true;}
             }
+            
+            else if (cursorI < 10){
+                if (cursorI < 7){
+                    if (cursorI == 5){newVal = replace10(thresholdArray[1], cycle);}
+                    else if (cursorI == 6){newVal = replace1(thresholdArray[1], cycle);}
+                    if (checkThreshold(newVal, 1)){thresholdArray[1] = newVal; shouldChange = true;}
+                }
+                else{
+                    if (cursorI == 8){newVal = replace10(thresholdArray[2], cycle);}
+                    else if (cursorI == 9){newVal = replace1(thresholdArray[2], cycle);}
+                    if (checkThreshold(newVal, 2)){thresholdArray[2] = newVal; shouldChange = true;}
+                } 
+            }
+
+            else if (cursorI < 16){
+                if (cursorI < 13){
+                    if (cursorI == 11){newVal = replace10(thresholdArray[3], cycle);}
+                    else if (cursorI == 12){newVal = replace1(thresholdArray[3], cycle);}
+                    if (checkThreshold(newVal, 3)){thresholdArray[3] = newVal; shouldChange = true;}
+                }
+                else{
+                    if (cursorI == 14){newVal = replace10(thresholdArray[4], cycle);}
+                    else if (cursorI == 15){newVal = replace1(thresholdArray[4], cycle);}
+                    if (checkThreshold(newVal, 4)){thresholdArray[4] = newVal; shouldChange = true;}
+                } 
+            }
+
+            else if (cursorI < 22){
+                if (cursorI < 19){
+                    if (cursorI == 17){newVal = replace10(thresholdArray[5], cycle);}
+                    else if (cursorI == 18){newVal = replace1(thresholdArray[5], cycle);}
+                    if (checkThreshold(newVal, 5)){thresholdArray[5] = newVal; shouldChange = true;}
+                }
+                else{
+                    if (cursorI == 20){newVal = replace10(thresholdArray[6], cycle);}
+                    else if (cursorI == 21){newVal = replace1(thresholdArray[6], cycle);}
+                    if (checkThreshold(newVal, 6)){thresholdArray[6] = newVal; shouldChange = true;}
+                } 
+            }
+
+            else if (cursorI < 27){
+                if (cursorI == 25){newVal = replace10(thresholdArray[7], cycle);}
+                else if (cursorI == 26){newVal = replace1(thresholdArray[7], cycle);}
+                if (checkThreshold(newVal, 7)){thresholdArray[7] = newVal; shouldChange = true;}
+            }
+
+            if (shouldChange){
+                lcd.setCursor(cursorI, 0);
+                lcd.print(cycle);
+                lcd.setCursor(cursorI, 1);
+                
+                cycle++;
+                if (cycle == 10){
+                    cycle = 0;
+                }
+            }
+            
         }
 
         else if (command == 3){
