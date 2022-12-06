@@ -443,108 +443,6 @@ void ADD(){
 }
 
 
-//turns the led green
-void led_GREEN(){
-    led_status = 'G';
-    led_Previous = 'G';
-    setColor(led_status);
-}
-
-//turns the led red
-void led_RED(){
-    led_status = 'R';
-    led_Previous = 'R';
-    setColor(led_status);
-}
-
-//turns the led off
-void led_OFF(){
-    led_status = 'O';
-    setColor(led_status);
-}
-
-
-
-//blinks the led using byte rotation
-void led_BLINK2(){
-    static long int ledTimer = 0;
-    if ((ledTimer < millis() && led_goBlink && (led_Previous == 'R')) //if led was red
-     || ((ledForce == true) && (led_Previous == 'R'))){
-        if (ledBlinkRed & 1 == 1){ 
-            if(ledBlinkRed >> 1 & 1 == 1){ //if '11'
-                led_status = 'O';
-                ledTimer = millis()+interval;
-                led_OFF();
-                ledForce = false;
-            }
-            else{ //if '10'
-                led_status = 'R';
-                ledTimer = millis()+interval;
-                led_RED();
-                ledForce = false;
-            }
-            
-        }
-        ledBlinkRed = ledBlinkRed >> 2;
-        
-        if(ledBlinkRed == 0){
-            ledBlinkRed = 0b01110111;
-        }
-    }
-
-    if ((ledTimer < millis() && led_goBlink && (led_Previous == 'G')) //if led was green
-     || ((ledForce == true) && (led_Previous == 'G'))){
-
-        if (ledBlinkGreen & 1 == 1){
-            if(ledBlinkGreen >> 1 & 1 == 1){ //if '11'
-                led_status = 'O';
-                ledTimer = millis()+interval;
-                led_OFF();
-                ledForce = false;
-            }
-        }
-        else{
-            if(ledBlinkGreen >> 1 & 1 == 1){ //if '01'
-                led_status = 'G';
-                ledTimer = millis()+interval;
-                led_GREEN();
-                ledForce = false;
-            }
-        }
-        ledBlinkGreen = ledBlinkGreen >> 2;
-        if(ledBlinkGreen == 0){
-            ledBlinkGreen = 0b10111011;
-        }
-
-    }
-}
-
-//leds color ALTERNATEs between red and green at the interval 
-void led_ALTERNATE(){
-    
-    static long int ledTimer = 0;
-    if (ledTimer < millis() && led_goALTERNATE){
-        if ((led_Previous == 'O' || led_Previous == 'R') && led_status == 'O'){
-            led_Previous = 'R';
-            led_status = 'R';
-            ledTimer = millis()+interval;
-            led_RED();
-        }
-        else if(led_Previous == 'R' && led_status == 'R'){
-            led_Previous = 'G';
-            led_status = 'G';
-            ledTimer = millis()+interval;
-            led_GREEN();
-        }
-        else if(led_Previous == 'G' && (led_status == 'G' || led_status == 'O')){
-            led_Previous = 'R';
-            led_status = 'R';
-            ledTimer = millis()+interval;
-            led_RED();
-        }
-    }
-}
-
 //prints the status of both leds
 void status_LEDS(){
     Udp.beginPacket(ipRemote, remotePort);
@@ -1092,7 +990,7 @@ int replace1(int old, int dig){
 }
 
 void changeIP(byte cursorIndex, byte eepromIndex, byte newNum){
-    
+
 }
 
 
@@ -1104,8 +1002,7 @@ void loop(){
     five_SECOND_TEMP();
     write_TO_EEPROM();
     RGB_BLINK();
-    led_BLINK2(); //start LED blinking
-    led_ALTERNATE(); //start LED ALTERNATEping colors
+
     if (currentMenu == 5){ //home menu
         changeMenu();
         if (menu == 5){
@@ -1408,78 +1305,6 @@ void loop(){
         {
             showTemp = false;
             switch (tokenBuffer[0]){
-                    break;
-                    case t_LED:
-                        switch (tokenBuffer[1])
-                        {
-                            case t_GREEN:
-                                switch (tokenBuffer[2]){
-                                    case t_EOL:
-                                        led_goALTERNATE = false;
-                                        led_goBlink = false;
-                                        led_GREEN();
-                                    break;
-                                    default:
-                                        showError();
-                                    break;
-                                }
-                            break;
-                            case t_RED:
-                                switch (tokenBuffer[2]){
-                                    case t_EOL:
-                                        led_goALTERNATE = false;
-                                        led_goBlink = false;
-                                        led_RED();
-                                    break;
-                                    default:
-                                        showError();
-                                    break;
-                                }
-                            break;
-                            case t_OFF:
-                                switch (tokenBuffer[2]){
-                                    case t_EOL:
-                                        led_goALTERNATE = false;
-                                        led_goBlink = false;
-                                        led_OFF();
-                                    break;
-                                    default:
-                                        showError();
-                                    break;
-                                }
-                                
-                            break;
-                            case t_BLINK:
-                                switch (tokenBuffer[2]){
-                                    case t_EOL:                                     
-                                        led_goALTERNATE = false;
-                                        led_goBlink = true;
-                                        led_BLINK2();
-                                    break;
-                                    default:
-                                        showError();
-                                    break;
-                                }
-                            break;
-                            case t_ALTERNATE:
-                                switch (tokenBuffer[2]){
-                                    case t_EOL:
-                                        led_goBlink = false;
-                                        led_goALTERNATE = true;
-                                        led_ALTERNATE();
-                                    break;
-                                    default:
-                                        showError();
-                                    break;
-                                }
-                                
-                            break;
-                            default:
-                                showError();
-                            break;
-
-                        }
-                    break;
                     case t_STATUS:
                         switch (tokenBuffer[1])
                         {
