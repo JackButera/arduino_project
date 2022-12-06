@@ -994,20 +994,28 @@ bool checkIP(short newNum){
     return false;
 }
 
-bool checkThreshold(short newNum, byte index){
-    if (index == 0 && newNum < thresholdArray[1]){
-        return true;
-    }
-    else if (index == 7 && newNum > thresholdArray[6]){
-        return true;
-    }
-    else if (index > 0 && index < 7){
-        if (newNum < thresholdArray[index+1] && newNum > thresholdArray[index-1]){
-            return true;
-        }
-    }
-    return false;
-}
+// bool checkThreshold(short newNum, byte index){
+//     if (index == 0 && newNum < thresholdArray[1]){
+//         return true;
+//     }
+//     else if (index == 7 && newNum > thresholdArray[6]){
+//         return true;
+//     }
+//     else if (index > 0 && index < 7){
+//         if (newNum < thresholdArray[index+1] && newNum > thresholdArray[index-1]){
+//             return true;
+//         }
+//     }
+//     return false;
+// }
+
+// void fixThresholds(){
+//     for (byte i = 0; i < 7; i++){
+//         if (thresholdArray[i] > thresholdArray[i+1]){
+//             thresholdArray[i] = thresholdArray[i+1] -1;
+//         }
+//     }
+// }
 
 
 
@@ -1207,54 +1215,54 @@ void loop(){
             short newVal;
             bool shouldChange = false;
             if (cursorI < 4 && cursorI > 1){
-                if (cursorI == 2){newVal = replace10(thresholdArray[0], cycle);}
-                else if (cursorI == 3){newVal = replace1(thresholdArray[0], cycle);}
-                if (checkThreshold(newVal, 0)){thresholdArray[0] = newVal; shouldChange = true;}
+                if (cursorI == 2){thresholdArray[0] = replace10(thresholdArray[0], cycle);}
+                else if (cursorI == 3){thresholdArray[0] = replace1(thresholdArray[0], cycle);}
+                shouldChange = true;
             }
             
             else if (cursorI < 10){
                 if (cursorI < 7){
-                    if (cursorI == 5){newVal = replace10(thresholdArray[1], cycle);}
-                    else if (cursorI == 6){newVal = replace1(thresholdArray[1], cycle);}
-                    if (checkThreshold(newVal, 1)){thresholdArray[1] = newVal; shouldChange = true;}
+                    if (cursorI == 5){thresholdArray[1] = replace10(thresholdArray[1], cycle);}
+                    else if (cursorI == 6){thresholdArray[1] = replace1(thresholdArray[1], cycle);}
+                    shouldChange = true;
                 }
                 else{
-                    if (cursorI == 8){newVal = replace10(thresholdArray[2], cycle);}
-                    else if (cursorI == 9){newVal = replace1(thresholdArray[2], cycle);}
-                    if (checkThreshold(newVal, 2)){thresholdArray[2] = newVal; shouldChange = true;}
+                    if (cursorI == 8){thresholdArray[2] = replace10(thresholdArray[2], cycle);}
+                    else if (cursorI == 9){thresholdArray[2] = replace1(thresholdArray[2], cycle);}
+                    shouldChange = true;
                 } 
             }
 
             else if (cursorI < 16){
                 if (cursorI < 13){
-                    if (cursorI == 11){newVal = replace10(thresholdArray[3], cycle);}
-                    else if (cursorI == 12){newVal = replace1(thresholdArray[3], cycle);}
-                    if (checkThreshold(newVal, 3)){thresholdArray[3] = newVal; shouldChange = true;}
+                    if (cursorI == 11){thresholdArray[3] = replace10(thresholdArray[3], cycle);}
+                    else if (cursorI == 12){thresholdArray[3] = replace1(thresholdArray[3], cycle);}
+                    shouldChange = true;
                 }
                 else{
-                    if (cursorI == 14){newVal = replace10(thresholdArray[4], cycle);}
-                    else if (cursorI == 15){newVal = replace1(thresholdArray[4], cycle);}
-                    if (checkThreshold(newVal, 4)){thresholdArray[4] = newVal; shouldChange = true;}
+                    if (cursorI == 14){thresholdArray[4] = replace10(thresholdArray[4], cycle);}
+                    else if (cursorI == 15){thresholdArray[4] = replace1(thresholdArray[4], cycle);}
+                    shouldChange = true;
                 } 
             }
 
             else if (cursorI < 22){
                 if (cursorI < 19){
-                    if (cursorI == 17){newVal = replace10(thresholdArray[5], cycle);}
-                    else if (cursorI == 18){newVal = replace1(thresholdArray[5], cycle);}
-                    if (checkThreshold(newVal, 5)){thresholdArray[5] = newVal; shouldChange = true;}
+                    if (cursorI == 17){thresholdArray[5] = replace10(thresholdArray[5], cycle);}
+                    else if (cursorI == 18){thresholdArray[5] = replace1(thresholdArray[5], cycle);}
+                    shouldChange = true;
                 }
                 else{
-                    if (cursorI == 20){newVal = replace10(thresholdArray[6], cycle);}
-                    else if (cursorI == 21){newVal = replace1(thresholdArray[6], cycle);}
-                    if (checkThreshold(newVal, 6)){thresholdArray[6] = newVal; shouldChange = true;}
+                    if (cursorI == 20){thresholdArray[6] = replace10(thresholdArray[6], cycle);}
+                    else if (cursorI == 21){thresholdArray[6] = replace1(thresholdArray[6], cycle);}
+                    shouldChange = true;
                 } 
             }
 
             else if (cursorI < 27){
-                if (cursorI == 25){newVal = replace10(thresholdArray[7], cycle);}
-                else if (cursorI == 26){newVal = replace1(thresholdArray[7], cycle);}
-                if (checkThreshold(newVal, 7)){thresholdArray[7] = newVal; shouldChange = true;}
+                if (cursorI == 25){thresholdArray[7] = replace10(thresholdArray[7], cycle);}
+                else if (cursorI == 26){thresholdArray[7] = replace1(thresholdArray[7], cycle);}
+                shouldChange = true;
             }
 
             if (shouldChange){
