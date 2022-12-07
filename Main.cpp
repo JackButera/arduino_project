@@ -157,15 +157,6 @@ byte cursorI = 6;
 byte cycle = 0;
 byte history = 13;
 
-byte majUnd = 60;
-byte lowMinUnd = 61;
-byte highMinUnd = 70;
-byte lowCom = 71;
-byte highCom = 80;
-byte lowMinOve = 81;
-byte highMinOve = 90;
-byte majOve = 91;
-
 byte thresholdArray[] = {60, 61, 70, 71, 80, 81, 90, 91};
 
 //initial prompt when program is run
@@ -445,57 +436,8 @@ void ADD(){
 //prints the status of both leds
 void status_LEDS(){
     Udp.beginPacket(ipRemote, remotePort);
-    Serial.print(F("> LED "));
-    Udp.print(F("> LED "));
-    if (led_goBlink  && !led_goALTERNATE){
-        Serial.print(F("BLINKING "));
-        Udp.print(F("BLINKING "));
-        if(led_Previous == 'R'){
-            Serial.println(F("RED"));
-            Udp.print(F("RED "));
-        }
-        else{
-            Serial.println(F("GREEN"));
-            Udp.print(F("GREEN "));
-        }
-    }
-    else if(!led_goBlink && !led_goALTERNATE){
-        if(led_Previous == 'R'){
-            if (led_status == 'R'){
-                Serial.println(F("RED"));
-                Udp.print(F("RED "));
-            }
-            else{
-                Serial.println(F("OFF"));
-                Udp.print(F("OFF "));
-            }
-        }
-        else if (led_Previous == 'G'){
-            if (led_status == 'G'){
-                Serial.println(F("GREEN"));
-                Udp.print(F("GREEN "));
-            }
-            else{
-                Serial.println(F("OFF"));
-                Udp.print(F("OFF "));
-            }
-        }
-        else{
-            Serial.println(F("OFF"));
-            Udp.print(F("OFF "));
-        }
-    }
-    else if(led_goALTERNATE){
-        Serial.println(F("ALTERNATING"));
-        Udp.print(F("ALTERNATING "));
-    }
 
     if (RGB_goBlink){
-        // Serial.print(F("> RGB BLINKING ("));
-        // Serial.print(userGREEN); Serial.print(' ');
-        // Serial.print(userRED); Serial.print(' ');
-        // Serial.print(userBLUE);
-        // Serial.println(')');
         Udp.print(F("> RGB BLINKING ("));
         Udp.print(userGREEN); Udp.print(' ');
         Udp.print(userRED); Udp.print(' ');
@@ -507,11 +449,6 @@ void status_LEDS(){
         Serial.print(F("> RGB "));
         Udp.print(F("> RGB "));
         if (RGB_status){
-            // Serial.print(F("ON ("));
-            // Serial.print(userGREEN); Serial.print(", ");
-            // Serial.print(userRED); Serial.print(", ");
-            // Serial.print(userBLUE);
-            // Serial.println(')');
             Udp.print("ON (");
             Udp.print(userGREEN); Udp.print(", ");
             Udp.print(userRED); Udp.print(", ");
@@ -542,9 +479,6 @@ void five_SECOND_TEMP(){
 
     if (timer<millis() && showTemp == true){
         dht22.read2(&currTemp, &currHumid, NULL);
-        // Serial.print((float)currTemp); Serial.print(F(" *C, "));
-        // Serial.print(celsiusToFarenheit(currTemp)); Serial.print(F(" *F, "));
-        // Serial.print((float)currHumid); Serial.println(F(" RH%"));
         
         Udp.beginPacket(ipRemote, remotePort);
         Udp.print(float(currTemp)); Udp.print(F(" *C, "));
@@ -597,14 +531,6 @@ void temp_HISTORY(){
 
     for (int i = 13; i < eeAddress; i+= 8){
         short printTemp = EEPROM[i] | (EEPROM[i+1] << 8);
-        // Serial.print(F("Temp: ")); Serial.print( printTemp ); Serial.print(F(" *C ")); 
-        // Serial.print(F("Humidity: ")); Serial.print( EEPROM[i+2] ); Serial.println(F(" RH%"));
-        // Serial.print(F("On: ")); Serial.print(EEPROM[i+6]); Serial.print('/');
-        // Serial.print(EEPROM[i+7]); Serial.print('/');
-        // Serial.println(EEPROM[i+5]);
-        // Serial.print(F("At: ")); Serial.print(EEPROM[i+3]); Serial.print(':');
-        // Serial.println(EEPROM[i+4]);
-        // Serial.println();
 
         Udp.beginPacket(ipRemote, remotePort);
         Udp.print(F("Temp: ")); Udp.print( printTemp ); Udp.print(F(" *C ")); 
@@ -631,12 +557,6 @@ void clearEEPROM(){
 //prints the current time
 void current_TIME(){
     MyDateAndTime = Clock.read();
-    // Serial.print(MyDateAndTime.Month); Serial.print('/');
-    // Serial.print(MyDateAndTime.Day); Serial.print('/');
-    // Serial.print(MyDateAndTime.Year); Serial.print(' ');
-    // Serial.print(MyDateAndTime.Hour); Serial.print(':');
-    // Serial.print(MyDateAndTime.Minute); Serial.print(':');
-    // Serial.print(MyDateAndTime.Second); Serial.println('\n');
 
     Udp.beginPacket(ipRemote, remotePort);
     Udp.print(MyDateAndTime.Month); Udp.print('/');
@@ -1624,28 +1544,6 @@ void loop(){
                     case t_HELP:
                         switch (tokenBuffer[1]){
                                 case t_EOL:
-                                    // Serial.println(F("The available commands are: "));
-                                    // Serial.println(F("->LED GREEN"));
-                                    // Serial.println(F("->LED RED"));
-                                    // Serial.println(F("->LED OFF"));
-                                    // Serial.println(F("->LED BLINK"));
-                                    // Serial.println(F("->LED ALTERNATE"));
-                                    // Serial.println(F("->SET BLINK <number>"));
-                                    // Serial.println(F("->STATUS LEDS"));
-                                    // Serial.println(F("->CURRENT TIME"));
-                                    // Serial.println(F("->SET TIME <month> <day> <year> <hour> <minute> <second>"));
-                                    // Serial.println(F("->CURRENT TEMP"));
-                                    // Serial.println(F("->TEMP HISTORY"));
-                                    // Serial.println(F("->TEMP HIGH LOW"));
-                                    // Serial.println(F("->ADD <number1> <number2>"));
-                                    // Serial.println(F("->RGB <red> <green> <blue>"));
-                                    // Serial.println(F("->RGB ON"));
-                                    // Serial.println(F("->RGB OFF"));
-                                    // Serial.println(F("->RGB BLINK"));
-                                    // Serial.println(F("->VERSION"));
-                                    // Serial.println(F("->HELP"));
-                                    // Serial.println();
-
                                     Udp.beginPacket(ipRemote, remotePort);
                                     Udp.print(F("The available commands are: "));
                                     Udp.print(F("->LED GREEN"));
@@ -1679,12 +1577,6 @@ void loop(){
                     case t_VERSION:
                         switch (tokenBuffer[1]){
                                 case t_EOL:
-                                    // Serial.print(F("Version: "));
-                                    // Serial.print(version[0]);
-                                    // Serial.print('.');
-                                    // Serial.print(version[1]);
-                                    // Serial.print('.');
-                                    // Serial.println(version[2]);
                                     Udp.beginPacket(ipRemote, remotePort);
                                     Udp.print(F("Version: "));
                                     Udp.print(version[0]);
@@ -1915,13 +1807,3 @@ void loop(){
 
     }
 }
-
-
-    
-
-
-
-
-
-
-
