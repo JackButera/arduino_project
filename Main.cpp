@@ -16,6 +16,9 @@
 
 #define NUM_LEDS 4 //number of leds
 
+#define MAX_ARGS 9 //max arguments for token buffer
+#define MAX_BUF 30 // max length of string buffer
+
 byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
 };
@@ -53,11 +56,7 @@ float currTemp; //holds current temperature reading
 float currHumid; //holds current humidity reading
 bool showTemp = false; //bool to determine whether or not to loop five second temp
 
-
-#define MAX_ARGS 9 //max arguments for token buffer
-#define MAX_BUF 30 // max length of string buffer
-
-static const uint8_t version[3] = {1,3,0}; //program version
+static const uint8_t version[3] = {1,4,0}; //program version
 
 unsigned long userBlinkLong; //number the user sets blink to
 
@@ -102,11 +101,6 @@ unsigned long msPrev = 0; //last time something was ran in proram
 
 
 unsigned long interval = 500; //blink interval time 
-char led_status = 'O'; //status of current led, 'O'->OFF, 'R'->RED, 'G'->GREEN
-char led_Previous = 'R'; //status of last color led input, 'O'->OFF, 'R'->RED, 'G'->GREEN
-static bool led_goBlink = false; //blink booolen to tell LED to blink or not
-static bool led_goALTERNATE = false; //alternates led colors if true
-static bool ledForce = false; //forces led blink
 
 int RGB_brightness = 30; //preset brightness for RGB
 static bool RGB_status = 0; //rgb status
@@ -139,11 +133,6 @@ unsigned int remotePort = 50618;
 bool receivedPacket = false;
 bool thresholdSent = false;
 
-
-byte ledBlinkRed = 0b01110111; //red led blinking byte
-byte ledBlinkGreen = 0b10111011; //green led blinking byte
-
-
 //LCD vairables
 int menu;
 int command;
@@ -163,8 +152,6 @@ byte thresholdArray[] = {60, 61, 70, 71, 80, 81, 90, 91};
 void introPrompt(){
     Serial.println(F(">Welcome to Arduino Command Line Interpreter, enter 'HELP' for list of commands!\n"));
 }
-
-
 
 //setup function
 void setup(){  
@@ -1065,14 +1052,20 @@ void editTempsUp(){
     else if (cursorI == 25){
         plus = ((thresholdArray[7]%100)/10)+1;
         if (plus == 10){plus = 0;}
-        thresholdArray[7] = replace10(thresholdArray[7], plus);
-        editLCD(cursorI, plus);
+        newVal = replace10(thresholdArray[7], plus);
+        if (newVal > thresholdArray[6]){
+            thresholdArray[7] = newVal;
+            editLCD(cursorI, plus);
+        }
     }
     else if (cursorI == 26){
         plus = (thresholdArray[7]%10)+1;
         if (plus == 10){plus = 0;}
-        thresholdArray[7] = replace1(thresholdArray[7], plus);
-        editLCD(cursorI, plus);
+        newVal = replace1(thresholdArray[7], plus);
+        if (newVal > thresholdArray[6]){
+            thresholdArray[7] = newVal;
+            editLCD(cursorI, plus);
+        };
     }
 }
 
@@ -1082,15 +1075,21 @@ void editTempsDown(){
     if (cursorI == 2){
         plus = ((thresholdArray[0]%100)/10)-1;
         if (plus == 255){plus = 9;}
-        thresholdArray[0] = replace10(thresholdArray[0], plus);
-        editLCD(cursorI, plus);
+        newVal = replace10(thresholdArray[0], plus);
+        if (newVal < thresholdArray[1]){
+            thresholdArray[0] = newVal;
+            editLCD(cursorI, plus);
+        }
         
     }
     else if (cursorI == 3){
         plus = (thresholdArray[0]%10)-1;
         if (plus == 255){plus = 9;}
-        thresholdArray[0] = replace1(thresholdArray[0], plus);
-        editLCD(cursorI, plus);
+        newVal = replace1(thresholdArray[0], plus);
+        if (newVal < thresholdArray[1]){
+            thresholdArray[0] = newVal;
+            editLCD(cursorI, plus);
+        }
     }
 
 
@@ -1232,6 +1231,120 @@ void editTempsDown(){
     }
 }
 
+void editIP(){
+    short newVal = 300;
+    if (cursorI < 3){//ip 1
+        if (cursorI == 0){newVal = replace100(EEPROM[0], cycle);}
+        else if (cursorI == 1){newVal = replace10(EEPROM[0], cycle);}
+        else if (cursorI == 2){newVal = replace1(EEPROM[0], cycle);}
+        if (checkIP(newVal)){EEPROM[0] = newVal;}
+    }
+
+    else if (cursorI < 7){//ip 2
+        if (cursorI == 4){newVal = replace100(EEPROM[1], cycle);}
+        else if (cursorI == 5){newVal = replace10(EEPROM[1], cycle);}
+        else if (cursorI == 6){newVal = replace1(EEPROM[1], cycle);}
+        if (checkIP(newVal)){EEPROM[1] = newVal;}
+    }
+
+    else if (cursorI == 8){//ip 3
+        newVal = replace1(EEPROM[2], cycle);
+        if (checkIP(newVal)){EEPROM[2] = newVal;}
+    }
+
+    else if (cursorI < 13){//ip 4
+        if (cursorI == 10){newVal = replace100(EEPROM[3], cycle);}
+        else if (cursorI == 11){newVal = replace10(EEPROM[3], cycle);}
+        else if (cursorI == 12){newVal = replace1(EEPROM[3], cycle);}
+        if (checkIP(newVal)){EEPROM[3] = newVal;}
+    }
+
+    if (checkIP(newVal)){
+        lcd.setCursor(cursorI, 0);
+        lcd.print(cycle);
+        lcd.setCursor(cursorI, 1);
+        cycle++;
+        if (cycle == 10){
+            cycle = 0;
+        }
+    }
+}
+
+void editSubnet(){
+    short newVal = 300;
+    if (cursorI < 17){//ip 1
+        if (cursorI == 14){newVal = replace100(EEPROM[4], cycle);}
+        else if (cursorI == 15){newVal = replace10(EEPROM[4], cycle);}
+        else if (cursorI == 16){newVal = replace1(EEPROM[4], cycle);}
+        if (checkIP(newVal)){EEPROM[4] = newVal;}
+    }
+
+    else if (cursorI < 21){//ip 2
+        if (cursorI == 18){newVal = replace100(EEPROM[5], cycle);}
+        else if (cursorI == 19){newVal = replace10(EEPROM[5], cycle);}
+        else if (cursorI == 20){newVal = replace1(EEPROM[5], cycle);}
+        if (checkIP(newVal)){EEPROM[5] = newVal;}
+    }
+
+    else if (cursorI < 25){//ip 4
+        if (cursorI == 22){newVal = replace100(EEPROM[6], cycle);}
+        else if (cursorI == 23){newVal = replace10(EEPROM[6], cycle);}
+        else if (cursorI == 24){newVal = replace1(EEPROM[6], cycle);}
+        if (checkIP(newVal)){EEPROM[6] = newVal;}
+    }
+
+    else if (cursorI == 26){//ip 3
+        newVal = replace1(EEPROM[7], cycle);
+        if (checkIP(newVal)){EEPROM[7] = newVal;}
+    }
+
+    if (checkIP(newVal)){
+        lcd.setCursor(cursorI, 0);
+        lcd.print(cycle);
+        lcd.setCursor(cursorI, 1);
+        cycle++;
+        if (cycle == 10){
+            cycle = 0;
+        }
+    }
+}
+
+void editGateway(){
+    short newVal = 300;
+    if (cursorI < 31){//ip 1
+        if (cursorI == 28){newVal = replace100(EEPROM[8], cycle);}
+        else if (cursorI == 29){newVal = replace10(EEPROM[8], cycle);}
+        else if (cursorI == 30){newVal = replace1(EEPROM[8], cycle);}
+        if (checkIP(newVal)){EEPROM[8] = newVal;}
+    }
+
+    else if (cursorI < 35){//ip 2
+        if (cursorI == 32){newVal = replace100(EEPROM[9], cycle);}
+        else if (cursorI == 33){newVal = replace10(EEPROM[9], cycle);}
+        else if (cursorI == 34){newVal = replace1(EEPROM[9], cycle);}
+        if (checkIP(newVal)){EEPROM[9] = newVal;}
+    }
+
+    else if (cursorI == 36){//ip 4
+        newVal = replace1(EEPROM[10], cycle);
+        if (checkIP(newVal)){EEPROM[10] = newVal;}
+    }
+
+    else if (cursorI == 38){//ip 3
+        newVal = replace1(EEPROM[11], cycle);
+        if (checkIP(newVal)){EEPROM[11] = newVal;}
+    }
+
+    if (checkIP(newVal)){
+        lcd.setCursor(cursorI, 0);
+        lcd.print(cycle);
+        lcd.setCursor(cursorI, 1);
+        cycle++;
+        if (cycle == 10){
+            cycle = 0;
+        }
+    }
+}
 
 //main loop
 void loop(){
@@ -1341,6 +1454,8 @@ void loop(){
     }
     if (currentMenu == 7){ //change ip menu
         changeCommand();
+        lcd.setCursor(cursorI, 1);
+        lcd.cursor();
         if (command == 1){
             lcd.scrollDisplayRight();
             if (cursorI == 0){
@@ -1352,42 +1467,9 @@ void loop(){
             
         }
         else if (command == 2){
-            short newVal = 300;
-            if (cursorI < 3){//ip 1
-                if (cursorI == 0){newVal = replace100(EEPROM[0], cycle);}
-                else if (cursorI == 1){newVal = replace10(EEPROM[0], cycle);}
-                else if (cursorI == 2){newVal = replace1(EEPROM[0], cycle);}
-                if (checkIP(newVal)){EEPROM[0] = newVal;}
-            }
-
-            else if (cursorI < 7){//ip 2
-                if (cursorI == 4){newVal = replace100(EEPROM[1], cycle);}
-                else if (cursorI == 5){newVal = replace10(EEPROM[1], cycle);}
-                else if (cursorI == 6){newVal = replace1(EEPROM[1], cycle);}
-                if (checkIP(newVal)){EEPROM[1] = newVal;}
-            }
-            
-            else if (cursorI == 8){//ip 3
-                newVal = replace1(EEPROM[2], cycle);
-                if (checkIP(newVal)){EEPROM[2] = newVal;}
-            }
-
-            else if (cursorI < 13){//ip 4
-                if (cursorI == 10){newVal = replace100(EEPROM[3], cycle);}
-                else if (cursorI == 11){newVal = replace10(EEPROM[3], cycle);}
-                else if (cursorI == 12){newVal = replace1(EEPROM[3], cycle);}
-                if (checkIP(newVal)){EEPROM[3] = newVal;}
-            }
-
-            if (checkIP(newVal)){
-                lcd.setCursor(cursorI, 0);
-                lcd.print(cycle);
-                lcd.setCursor(cursorI, 1);
-                cycle++;
-                if (cycle == 10){
-                    cycle = 0;
-                }
-            }
+            editIP();
+            editSubnet();
+            editGateway();
                 
         }
         else if (command == 3){
@@ -1602,9 +1684,6 @@ void loop(){
 
                                         switch (tokenBuffer[5]){
                                             case t_EOL:
-                                                if(led_goBlink == true){
-                                                    ledForce = true;
-                                                }
                                                 if(RGB_goBlink){
                                                     RGBForce = true;
                                                 }
