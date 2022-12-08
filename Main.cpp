@@ -11,6 +11,7 @@
 
 #include "keypad.h"
 #include "led_controller.h"
+#include "dcp.h"
 
 #define def_COUNT 24 //number of defines
 
@@ -129,9 +130,10 @@ byte second = 0;
 //UDP packet alarm info
 byte alarm = 0;
 IPAddress ipRemote(192,168,1,180);
-unsigned int remotePort = 50618;
+unsigned int remotePort = 57070;
 bool receivedPacket = false;
 bool thresholdSent = false;
+
 
 //LCD vairables
 int menu;
@@ -188,7 +190,6 @@ void setup(){
 
 //checks whether or not a string contains only numbers
 bool isValidNumber(char str[5]){
-    //bool ret = 0;
     for(byte i=0;i<5;i++)
     {
         if(isDigit(str[i])) return true;
@@ -764,7 +765,7 @@ void myStrncat(char dest[], char src[], byte length)
 }
 
 //changes menu from home
-int changeMenu(){
+void changeMenu(){
     static long int timer = 0;
     int button = readButtons();
     if (timer < millis()){
@@ -779,7 +780,7 @@ int changeMenu(){
     }
 }
 //commands contoroller for when inside menus
-int changeCommand(){
+void changeCommand(){
     static long int timer = 0;
     int button = readButtons();
     if (timer < millis()){
@@ -894,6 +895,7 @@ int replace1(int old, int dig){
     return ret;
 }
 
+//checks if number is within bounds
 bool checkIP(short newNum){
     if (newNum <= 255){
         return true;
@@ -901,12 +903,14 @@ bool checkIP(short newNum){
     return false;
 }
 
+//used for changing digits on lcd
 void editLCD(byte cursor, byte val){
     lcd.setCursor(cursor, 0);
     lcd.print(val);
     lcd.setCursor(cursor, 1);
 }
 
+//edits digits when clicking up in temp threshold menu
 void editTempsUp(){
     short newVal;
     byte plus;
@@ -1069,6 +1073,7 @@ void editTempsUp(){
     }
 }
 
+//edits digits when clickeing down in temp threshold menu
 void editTempsDown(){
     short newVal;
     byte plus;
@@ -1231,6 +1236,7 @@ void editTempsDown(){
     }
 }
 
+//edtis the ip address
 void editIP(){
     short newVal = 300;
     if (cursorI < 3){//ip 1
@@ -1270,6 +1276,7 @@ void editIP(){
     }
 }
 
+//edits the subnet
 void editSubnet(){
     short newVal = 300;
     if (cursorI < 17){//ip 1
@@ -1309,6 +1316,7 @@ void editSubnet(){
     }
 }
 
+//edits the gateway
 void editGateway(){
     short newVal = 300;
     if (cursorI < 31){//ip 1
@@ -1345,6 +1353,7 @@ void editGateway(){
         }
     }
 }
+
 
 //main loop
 void loop(){
@@ -1626,28 +1635,28 @@ void loop(){
                     case t_HELP:
                         switch (tokenBuffer[1]){
                                 case t_EOL:
-                                    Udp.beginPacket(ipRemote, remotePort);
-                                    Udp.print(F("The available commands are: "));
-                                    Udp.print(F("->LED GREEN"));
-                                    Udp.print(F("->LED RED"));
-                                    Udp.print(F("->LED OFF"));
-                                    Udp.print(F("->LED BLINK"));
-                                    Udp.print(F("->LED ALTERNATE"));
-                                    Udp.print(F("->BLINK <number>"));
-                                    Udp.print(F("->STATUS LEDS"));
-                                    Udp.print(F("->CURRENT TIME"));
-                                    Udp.print(F("->SET TIME <month> <day> <year> <hour> <minute> <second>"));
-                                    Udp.print(F("->CURRENT TEMP"));
-                                    Udp.print(F("->TEMP HISTORY"));
-                                    Udp.print(F("->TEMP HIGH LOW"));
-                                    Udp.print(F("->ADD <number1> <number2>"));
-                                    Udp.print(F("->RGB <red> <green> <blue>"));
-                                    Udp.print(F("->RGB ON"));
-                                    Udp.print(F("->RGB OFF"));
-                                    Udp.print(F("->RGB BLINK"));
-                                    Udp.print(F("->VERSION"));
-                                    Udp.print(F("->HELP"));
-                                    Udp.endPacket();
+                                    // Udp.beginPacket(ipRemote, remotePort);
+                                    // Udp.print(F("The available commands are: "));
+                                    // Udp.print(F("->LED GREEN"));
+                                    // Udp.print(F("->LED RED"));
+                                    // Udp.print(F("->LED OFF"));
+                                    // Udp.print(F("->LED BLINK"));
+                                    // Udp.print(F("->LED ALTERNATE"));
+                                    // Udp.print(F("->BLINK <number>"));
+                                    // Udp.print(F("->STATUS LEDS"));
+                                    // Udp.print(F("->CURRENT TIME"));
+                                    // Udp.print(F("->SET TIME <month> <day> <year> <hour> <minute> <second>"));
+                                    // Udp.print(F("->CURRENT TEMP"));
+                                    // Udp.print(F("->TEMP HISTORY"));
+                                    // Udp.print(F("->TEMP HIGH LOW"));
+                                    // Udp.print(F("->ADD <number1> <number2>"));
+                                    // Udp.print(F("->RGB <red> <green> <blue>"));
+                                    // Udp.print(F("->RGB ON"));
+                                    // Udp.print(F("->RGB OFF"));
+                                    // Udp.print(F("->RGB BLINK"));
+                                    // Udp.print(F("->VERSION"));
+                                    // Udp.print(F("->HELP"));
+                                    // Udp.endPacket();
 
                                 break;
                                 default:
