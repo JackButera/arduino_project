@@ -130,7 +130,7 @@ byte second = 0;
 //UDP packet alarm info
 byte alarm = 0;
 IPAddress ipRemote(192,168,1,180);
-unsigned int remotePort = 57070;
+unsigned int remotePort = 40131;
 bool receivedPacket = false;
 bool thresholdSent = false;
 
@@ -737,17 +737,53 @@ void sendAlarmPacket(byte tempState){
     }
 }
 
+byte alarmStateToBin(byte state){
+    if (state == 5){return 0b0101;}
+    else if (state == 6){return 0b0001;}
+    else if (state == 7){return 0b0000;}
+    else if (state == 8){return 0b0010;}
+    else if (state == 9){return 0b1010;}
+}
 
 //takes in udp packets and add them to the string buffer
 void receivePackets(){
     int packetSize = Udp.parsePacket();
     if (packetSize) {
-        receivedPacket = true;
-        // read the packet into packetBufffer
-        Udp.read(packetBuffer, 30);
-        Serial.print(packetBuffer);
-        Serial.print(F(" *PACKET RECEIVED"));
-        myStrcpy(buffer, packetBuffer);
+        
+        
+        
+        if (Udp.remotePort() == 5000){
+            byte bchBuffer[5];
+            Udp.read(bchBuffer, 5);
+            if(bchBuffer[4] == DCP_genCmndBCH(bchBuffer, 4) && bchBuffer[2] == ip[3]){
+                byte respBCHBuffer[] = {0xAA, 0xFA, 177, 1};
+                byte dataBuffer[] = {0xAA, 0xFA, 1, alarmStateToBin(tempThresholdState()), byte(celsiusToFarenheit(currTemp)), 0, 0};
+                respBCHBuffer[4] = DCP_genCmndBCH(respBCHBuffer, 4);
+                dataBuffer[7] = DCP_genCmndBCH(dataBuffer, 7);
+                
+                Udp.beginPacket(ipRemote, Udp.remotePort());
+                Udp.write(respBCHBuffer, 5);
+                Udp.write(dataBuffer, 8);
+                //Udp.print(BCH);
+                Udp.endPacket();
+            }
+            else{
+                Udp.beginPacket(ipRemote, Udp.remotePort());
+                Udp.write("Failed");
+                Udp.endPacket();
+            }
+            
+        }
+        else {
+            // read the packet into packetBufffer
+            receivedPacket = true;
+            Udp.read(packetBuffer, 30);
+            Serial.print(packetBuffer);
+            Serial.print(F(" *PACKET RECEIVED"));
+            myStrcpy(buffer, packetBuffer); 
+        }
+        
+        
         // send a reply to the IP address and port that sent us the packet we received
     }
 }
