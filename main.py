@@ -1,6 +1,8 @@
 from flask import Flask, jsonify, render_template, request
+from flask_mail import Mail, Message
 import socket
 import array
+import smtplib
 
 app = Flask(__name__)
 
@@ -13,8 +15,14 @@ port = 5000
 recvIP = "192.168.1.177"
 recvPort = 8888
 
-sendCommand = [0xAA, 0xFC, 177, 0x03]
+# Email info
+app.config['MAIL_SERVER']='localhost'
+app.config['MAIL_PORT'] = 2525
+mail = Mail(app)
 
+lastAlarmState = "none"
+
+sendCommand = [0xAA, 0xFC, 177, 0x03]
 # BCH checksum
 def DCP_genCmndBCH(buff, count):
     nBCHpoly = 0xB8
@@ -69,38 +77,53 @@ def validateDataPacket(arr):
         return True
     return False
     
-
 # Function for receiving messages
 def receiveMessages():
     data = s.recvfrom(1024)
     data = data[0]
+    
     if (validateFAPacket(data[:5]) & validateDataPacket(data[5:])):
         state = getTempState(data[8])
         temp = data[9]
-        return 'Temperature State: ' + str(state) + ' -> Temperature: '+ str(temp)
+        global lastAlarmState
+        if (state != lastAlarmState):
+            lastAlarmState = state
+            msg = Message('Hello', sender = 'yourId@gmail.com', recipients = ['someone1@gmail.com'])
+            msg.subject = "Alarm State " + state
+            mail.send(msg)
+
+        return 'Temperature State: ' + str(state) + ' -> Temperature: '+ str(temp) + ' *F'
     else:
         return 'Failed to validate BCH'
+    
+        
+    
+    
         
 
 # Function for sending messages
 def sendMessages():
     s.sendto(byte_array, (recvIP, recvPort))
 
+
 ## Sets ip address, only runs once when program is first run
 @app.before_first_request
 def do_something_only_once():
     s.bind((ip, port))
+    
 
 # Gets new values for temperature state and temperature
 @app.route('/_stuff', methods = ['GET'])
 def stuff():
     sendMessages()
     ret = receiveMessages()
+    
     return jsonify(result=ret)
 
 # Displays temperature state and temperature
 @app.route('/')
 def Home():
+    
     return render_template('dy1.html')
 
 # Runs flask
