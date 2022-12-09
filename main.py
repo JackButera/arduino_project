@@ -56,16 +56,33 @@ def getTempState(thresh):
     elif (thresh == 0b1010):
         return "Major Over"
 
+def validateFAPacket(arr):
+    recBCH = arr[4]
+    checkBCH = DCP_genCmndBCH(arr, 4)
+    if (recBCH == checkBCH):
+        return True
+    return False
+
+def validateDataPacket(arr):
+    recBCH = arr[7]
+    checkBCH = DCP_genCmndBCH(arr, 7)
+    if (recBCH == checkBCH):
+        return True
+    return False
+
 
 # Function for receiving messages
 def receiveMessages():
     while(True):
         data = s.recvfrom(1024)
         data = data[0]
-        state = getTempState(data[8])
-        temp = data[9]
-        print(f'Temperature State: {state}')
-        print(f'Temperature: {temp}')
+        if (validateFAPacket(data[:5]) & validateDataPacket(data[5:])):
+            state = getTempState(data[8])
+            temp = data[9]
+            print(f'Temperature State: {state}')
+            print(f'Temperature: {temp}')
+        else:
+            print(f'Failed to validate BCH')
         
 
 # Function for sending messages

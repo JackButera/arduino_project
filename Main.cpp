@@ -682,19 +682,19 @@ void myStrcpy(char og[30], char str[30]){
 byte tempThresholdState(){
     short faren = celsiusToFarenheit(currTemp);
     if (faren <= thresholdArray[0]){
-        return 5;
+        return 0b0101;
     }
     else if(faren >= thresholdArray[1] && faren <= thresholdArray[2]){
-        return 6;
+        return 0b0001;
     }
     else if(faren >= thresholdArray[3] && faren <= thresholdArray[4]){
-        return 7;
+        return 0b0000;
     }
     else if(faren >= thresholdArray[5] && faren <= thresholdArray[6]){
-        return 8;
+        return 0b0010;
     }
     else if(faren >= thresholdArray[7]){
-        return 9;
+        return 0b1010;
     }
 }
 
@@ -702,32 +702,32 @@ byte tempThresholdState(){
 void sendAlarmPacket(byte tempState){
     if (tempState != alarm){
         Udp.beginPacket(ipRemote, remotePort);
-        if (tempState == 5){
-            alarm = 5;
+        if (tempState == 0b0101){
+            alarm = 0b0101;
             Udp.print(F("Major Under"));
             leds[2].green = 255;
             leds[2].red = 0;
             leds[2].blue = 255;
         }
-        else if(tempState == 6){
-            alarm = 6;
+        else if(tempState == 0b0001){
+            alarm = 0b0001;
             Udp.print(F("Minor Under"));
             leds[2] = CRGB::Blue;
         }
-        else if(tempState == 7){
-            alarm = 7;
+        else if(tempState == 0b0000){
+            alarm = 0b0000;
             Udp.print(F("Comfortable"));
             leds[2] = CRGB::Red; //actually green
         }
-        else if(tempState == 8){
-            alarm = 8;
+        else if(tempState == 0b0010){
+            alarm = 0b0010;
             Udp.print(F("Minor Over"));
             leds[2].green = 255;
             leds[2].red = 75;
             leds[2].blue = 0;
         }
-        else if(tempState == 9){
-            alarm = 9;
+        else if(tempState == 0b1010){
+            alarm = 0b1010;
             Udp.print(F("Major Over"));
             leds[2] = CRGB::Green; //actually red
         }
@@ -737,35 +737,33 @@ void sendAlarmPacket(byte tempState){
     }
 }
 
-byte alarmStateToBin(byte state){
-    if (state == 5){return 0b0101;}
-    else if (state == 6){return 0b0001;}
-    else if (state == 7){return 0b0000;}
-    else if (state == 8){return 0b0010;}
-    else if (state == 9){return 0b1010;}
-}
-
 //takes in udp packets and add them to the string buffer
 void receivePackets(){
     int packetSize = Udp.parsePacket();
     if (packetSize) {
-        
-        
         
         if (Udp.remotePort() == 5000){
             byte bchBuffer[5];
             Udp.read(bchBuffer, 5);
             if(bchBuffer[4] == DCP_genCmndBCH(bchBuffer, 4) && bchBuffer[2] == ip[3]){
                 byte respBCHBuffer[] = {0xAA, 0xFA, 177, 1};
-                byte dataBuffer[] = {0xAA, 0xFA, 1, alarmStateToBin(tempThresholdState()), byte(celsiusToFarenheit(currTemp)), 0, 0};
+                byte dataBuffer[] = {0xAA, 0xFA, 1, tempThresholdState(), byte(celsiusToFarenheit(currTemp)), 0, 0};
                 respBCHBuffer[4] = DCP_genCmndBCH(respBCHBuffer, 4);
                 dataBuffer[7] = DCP_genCmndBCH(dataBuffer, 7);
                 
                 Udp.beginPacket(ipRemote, Udp.remotePort());
                 Udp.write(respBCHBuffer, 5);
                 Udp.write(dataBuffer, 8);
-                //Udp.print(BCH);
                 Udp.endPacket();
+            }
+            else if(bchBuffer[4] != DCP_genCmndBCH(bchBuffer, 4)){
+                menu = 12;
+                lcd.clear();
+                lcd.print(F("Checksum Rec:"));
+                lcd.print(bchBuffer[4]);
+                lcd.setCursor(0,1);
+                lcd.print(F("Checksum Exp:"));
+                lcd.print(DCP_genCmndBCH(bchBuffer, 4));
             }
             else{
                 Udp.beginPacket(ipRemote, Udp.remotePort());
