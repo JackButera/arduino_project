@@ -2,7 +2,9 @@ from flask import Flask, jsonify, render_template, request
 from flask_mail import Mail, Message
 import socket
 import array
+import select
 import smtplib
+import threading
 
 app = Flask(__name__)
 
@@ -15,12 +17,24 @@ port = 5000
 recvIP = "192.168.1.177"
 recvPort = 8888
 
+IPArray = []
+
 # Email info
 app.config['MAIL_SERVER']='localhost'
 app.config['MAIL_PORT'] = 2525
 mail = Mail(app)
 
 lastAlarmState = "none"
+
+def fillIPArray():
+    i = 1
+    while (i <= 255):
+        tempIP = "192.168.1."
+        tempIP += str(i)
+        IPArray.append(tempIP)
+        i += 1
+
+fillIPArray()
 
 sendCommand = [0xAA, 0xFC, 177, 0x03]
 # BCH checksum
@@ -79,53 +93,74 @@ def validateDataPacket(arr):
     
 # Function for receiving messages
 def receiveMessages():
-    data = s.recvfrom(1024)
-    data = data[0]
-    
-    if (validateFAPacket(data[:5]) & validateDataPacket(data[5:])):
-        state = getTempState(data[8])
-        temp = data[9]
-        global lastAlarmState
-        if (state != lastAlarmState):
-            lastAlarmState = state
-            msg = Message('Hello', sender = 'yourId@gmail.com', recipients = ['someone1@gmail.com'])
-            msg.subject = "Alarm State " + state
-            mail.send(msg)
-
-        return 'Temperature State: ' + str(state) + ' -> Temperature: '+ str(temp) + ' *F'
-    else:
-        return 'Failed to validate BCH'
-    
+    while True:
+        # readables, writables, errors = select.select([s], [], [], 1)
+        # for read_socket in readables:
+        print('running')
+        data = s.recvfrom(1024)
+        data = data[0]
         
     
     
+        if (validateFAPacket(data[:5]) & validateDataPacket(data[5:])):
+            state = getTempState(data[8])
+            temp = data[9]
+            global lastAlarmState
+            ret = ''
+            if (state != lastAlarmState):
+                lastAlarmState = state
+                msg = Message('Hello', sender = 'yourId@gmail.com', recipients = ['someone1@gmail.com'])
+                msg.subject = "Alarm State " + state
+                mail.send(msg)
+            
+            ret += 'Temperature State: ' + str(state) + ' -> Temperature: '+ str(temp) + ' *F'
+            print(ret)
+            return ret
+        else:
+            return 'Failed to validate BCH'
+
+        #return 'Received Nothing'
+    
+        
+
         
 
 # Function for sending messages
-def sendMessages():
-    s.sendto(byte_array, (recvIP, recvPort))
-
+def sendMessages(i):
+    s.connect((IPArray[i], recvPort))
+    s.send(byte_array)
+    s.close
 
 ## Sets ip address, only runs once when program is first run
 @app.before_first_request
 def do_something_only_once():
     s.bind((ip, port))
     
+    
 
 # Gets new values for temperature state and temperature
 @app.route('/_stuff', methods = ['GET'])
 def stuff():
-    sendMessages()
-    ret = receiveMessages()
-    
+    listenUDP = threading.Thread(target=receiveMessages)
+    listenUDP.daemon = True
+    listenUDP.start()
+    i = 1
+    ret = None
+    while i < 178:
+        sendMessages(i)
+        i+=1
+
+
     return jsonify(result=ret)
 
 # Displays temperature state and temperature
 @app.route('/')
 def Home():
     
+    
     return render_template('dy1.html')
 
 # Runs flask
 if __name__ == "__main__":
+    
     app.run(debug=True)

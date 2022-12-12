@@ -741,7 +741,7 @@ void sendAlarmPacket(byte tempState){
 void receivePackets(){
     int packetSize = Udp.parsePacket();
     if (packetSize) {
-        
+        packetReceived++;
         if (Udp.remotePort() == 5000){
             byte bchBuffer[5];
             Udp.read(bchBuffer, 5);
@@ -779,6 +779,7 @@ void receivePackets(){
             Serial.print(packetBuffer);
             Serial.print(F(" *PACKET RECEIVED"));
             myStrcpy(buffer, packetBuffer); 
+            
         }
         
         
@@ -1622,7 +1623,6 @@ void loop(){
         //parses the string the user entered
         char right = '>';
         myStrncat(statsBuffer, &right, 1);
-        packetReceived++;
         for(byte i = 0; i < myStrlen(buffer); i++){
             myStrncat(statsBuffer, &buffer[i], 1);
             
