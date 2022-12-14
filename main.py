@@ -103,11 +103,11 @@ def listenUDP():
                     if (state != ard[3]): # Checking last temp state
                         ard[3] = state
                         msg = Message('Hello', sender = 'yourId@gmail.com', recipients = ['someone1@gmail.com'])
-                        msg.subject = recIP +" Alarm State " + state
+                        msg.subject = '(' + recIP + ') ' +"Alarm State " + state
                         mail.send(msg)
 
             global returnMessage
-            returnMessage += recIP + ' Temperature State: ' + str(state) + ' -> Temperature: '+ str(temp) + ' *F '
+            returnMessage += '(' + recIP + ') ' + 'Temperature State: ' + str(state) + ' -> Temperature: '+ str(temp) + ' *F '
 
 # Starting the listening thread
 T = Thread(target = listenUDP)
