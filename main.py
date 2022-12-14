@@ -5,13 +5,13 @@ import array
 import select
 import smtplib
 from threading import *
-import time
 
 app = Flask(__name__)
 
 # Using IPv4 and UDP protocol
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
+# hostname and port
 ip = "192.168.1.180"
 port = 5000
 
@@ -20,11 +20,9 @@ app.config['MAIL_SERVER']='localhost'
 app.config['MAIL_PORT'] = 2525
 mail = Mail(app) 
 
-lastAlarmState = "none"
+# Initializing the return message to be displayed on webpage
 returnMessage = ''
 
-sendCommand1 = [0xAA, 0xFC, 177, 0x03]
-sendCommand2 = [0xAA, 0xFC, 170, 0x03]
 # BCH checksum
 def DCP_genCmndBCH(buff, count):
     nBCHpoly = 0xB8
@@ -44,15 +42,17 @@ def DCP_genCmndBCH(buff, count):
     bch ^= fBCHpoly
     return bch
 
-# Adding checksum to command array
-commandBCH = DCP_genCmndBCH(sendCommand1, 4)
-sendCommand1.append(commandBCH)
-commandBCH = DCP_genCmndBCH(sendCommand2, 4)
-sendCommand2.append(commandBCH)
+# Generates the send command array
+def genSendCommand(ip):
+    sendCommand = [0xAA, 0xFC, ip, 0x04]
+    commandBCH = DCP_genCmndBCH(sendCommand, 4)
+    sendCommand.append(commandBCH)
+    sendCommand = bytearray(sendCommand)
+    return sendCommand
 
-sendCommand1 = bytearray(sendCommand1)
-sendCommand2 = bytearray(sendCommand2)
-arduinoArray = [["192.168.1.177", 8888, sendCommand1, "none"], ["192.168.1.170", 7777, sendCommand2, "none"]]
+# Array of arduinos to send commands to
+arduinoArray = [["192.168.1.177", 8888, genSendCommand(177), "none"], 
+                ["192.168.1.170", 7777, genSendCommand(170), "none"]]
 
 # Return string for temperature threshold
 def getTempState(thresh):
@@ -84,60 +84,48 @@ def validateDataPacket(arr):
     return False
 
 
-
-# Function for sending messages
+# Sends commands to all arduinos in arduino array
 def sendMessages():
     for dest in arduinoArray:
         s.sendto(dest[2], (dest[0], dest[1]))
 
 
-
+# Thread to constantly listen for udp packets
 def listenUDP():
     with app.app_context():
-        # global s
         while True:
-            data, addr = s.recvfrom(1024)
+            data, addr = s.recvfrom(1024) # Waiting for packet
             recIP = addr[0]
             state = getTempState(data[8])
             temp = data[9]
-            global lastAlarmState
-            for ard in arduinoArray:
-                if (recIP == ard[0]):
-                    if (state != ard[3]):
+            for ard in arduinoArray: # Sends emails for temp state
+                if (recIP == ard[0]): # Checking IP (which arduino)
+                    if (state != ard[3]): # Checking last temp state
                         ard[3] = state
                         msg = Message('Hello', sender = 'yourId@gmail.com', recipients = ['someone1@gmail.com'])
                         msg.subject = recIP +" Alarm State " + state
                         mail.send(msg)
-            # if (state != lastAlarmState):
-            #     lastAlarmState = state
-            #     msg = Message('Hello', sender = 'yourId@gmail.com', recipients = ['someone1@gmail.com'])
-            #     msg.subject = "Alarm State " + state
-            #     mail.send(msg)
-            
+
             global returnMessage
             returnMessage += recIP + ' Temperature State: ' + str(state) + ' -> Temperature: '+ str(temp) + ' *F '
 
+# Starting the listening thread
 T = Thread(target = listenUDP)
 T.start()
-        
 
-
-    
-
-## Sets ip address, only runs once when program is first run
+# Sets ip address, only runs when program is first run
 @app.before_first_request
 def do_something_only_once():
     s.bind((ip, port))
 
 
-# Gets new values for temperature state and temperature
+# Called every five seconds to send command messages out to arduinos and return responses
 @app.route('/_stuff', methods = ['GET'])
 def stuff():
     global returnMessage
-    
     sendMessages()
-    cpy = returnMessage
-    returnMessage = ""
+    cpy = returnMessage # copies return message for return
+    returnMessage = "" # clears return message for new 5 seconds
     return jsonify(result=cpy)
 
 
@@ -145,10 +133,8 @@ def stuff():
 # Displays temperature state and temperature
 @app.route('/')
 def Home():
-    
     return render_template('dy1.html')
 
 # Runs flask
 if __name__ == "__main__":
-    
     app.run(debug=True)
