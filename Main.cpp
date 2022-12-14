@@ -128,9 +128,9 @@ byte minute = 0;
 byte second = 0;
 
 //UDP packet alarm info
-byte alarm = 0;
+byte alarm = 250;
 IPAddress ipRemote(192,168,1,180);
-unsigned int remotePort = 40131;
+unsigned int remotePort = 52606;
 bool receivedPacket = false;
 bool thresholdSent = false;
 
@@ -740,9 +740,11 @@ void sendAlarmPacket(byte tempState){
 //takes in udp packets and add them to the string buffer
 void receivePackets(){
     int packetSize = Udp.parsePacket();
+    
     if (packetSize) {
         packetReceived++;
         if (Udp.remotePort() == 5000){
+            
             byte bchBuffer[5];
             Udp.read(bchBuffer, 5);
             if(bchBuffer[4] == DCP_genCmndBCH(bchBuffer, 4) && bchBuffer[2] == ip[3]){
@@ -1579,6 +1581,8 @@ void loop(){
         c = 13;
         receivedPacket = false;
     }
+
+
     
     // Check for Ethernet hardware present
     if (Ethernet.hardwareStatus() == EthernetNoHardware || Ethernet.linkStatus() == LinkOFF) {

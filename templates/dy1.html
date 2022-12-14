@@ -2,16 +2,15 @@
 {% block body %}
 <script type="text/javascript">
     var intervalID = setInterval(update_values, 5000);
-
     function update_values() {
         $.getJSON($SCRIPT_ROOT + '/_stuff',
-
             function (data) {
                 $('#result').text(data.result);
                 console.log(data.slice)
             });
-
     };
+
+    
 
 </script>
 
@@ -22,6 +21,8 @@
         <script>
             document.getElementById("result").innerHTML;
         </script>
+
+
     
 
         {% endblock %}
