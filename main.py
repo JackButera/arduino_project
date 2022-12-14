@@ -15,15 +15,13 @@ s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 ip = "192.168.1.180"
 port = 5000
 
-recvIP = "192.168.1.177"
-recvPort = 8888
-
 # Email info
 app.config['MAIL_SERVER']='localhost'
 app.config['MAIL_PORT'] = 2525
 mail = Mail(app) 
 
 lastAlarmState = "none"
+returnMessage = ''
 
 sendCommand1 = [0xAA, 0xFC, 177, 0x03]
 sendCommand2 = [0xAA, 0xFC, 170, 0x03]
@@ -54,6 +52,7 @@ sendCommand2.append(commandBCH)
 
 sendCommand1 = bytearray(sendCommand1)
 sendCommand2 = bytearray(sendCommand2)
+arduinoArray = [["192.168.1.177", 8888, sendCommand1, "none"], ["192.168.1.170", 7777, sendCommand2, "none"]]
 
 # Return string for temperature threshold
 def getTempState(thresh):
@@ -85,15 +84,13 @@ def validateDataPacket(arr):
     return False
 
 
+
 # Function for sending messages
-def sendMessages(i, c):
-    if (c == 1):
-        s.sendto(sendCommand1, (recvIP, recvPort))
+def sendMessages():
+    for dest in arduinoArray:
+        s.sendto(dest[2], (dest[0], dest[1]))
 
-    elif (c == 2):
-        s.sendto(sendCommand2, ('192.168.1.170', 7777)) 
 
-returnMessage = ''
 
 def listenUDP():
     with app.app_context():
@@ -101,26 +98,26 @@ def listenUDP():
         while True:
             data, addr = s.recvfrom(1024)
             recIP = addr[0]
-            # print(addr[0])
-            # gotIP = s.getpeername()[0]
-            # print(data[12])
-            # print(DCP_genCmndBCH(data[5:], 7))
-            # # if (validateFAPacket(data[:5]) & validateDataPacket(data[5:])):
             state = getTempState(data[8])
             temp = data[9]
             global lastAlarmState
-            if (state != lastAlarmState):
-                lastAlarmState = state
-                msg = Message('Hello', sender = 'yourId@gmail.com', recipients = ['someone1@gmail.com'])
-                msg.subject = "Alarm State " + state
-                mail.send(msg)
+            for ard in arduinoArray:
+                if (recIP == ard[0]):
+                    if (state != ard[3]):
+                        ard[3] = state
+                        msg = Message('Hello', sender = 'yourId@gmail.com', recipients = ['someone1@gmail.com'])
+                        msg.subject = recIP +" Alarm State " + state
+                        mail.send(msg)
+            # if (state != lastAlarmState):
+            #     lastAlarmState = state
+            #     msg = Message('Hello', sender = 'yourId@gmail.com', recipients = ['someone1@gmail.com'])
+            #     msg.subject = "Alarm State " + state
+            #     mail.send(msg)
             
             global returnMessage
             returnMessage += recIP + ' Temperature State: ' + str(state) + ' -> Temperature: '+ str(temp) + ' *F '
-            # print(returnMessage)
 
 T = Thread(target = listenUDP)
-# T.setDaemon(True)
 T.start()
         
 
@@ -138,8 +135,7 @@ def do_something_only_once():
 def stuff():
     global returnMessage
     
-    sendMessages('192.168.1.177', 1)
-    sendMessages('192.168.1.170', 2)
+    sendMessages()
     cpy = returnMessage
     returnMessage = ""
     return jsonify(result=cpy)
